@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scientific Dashboard — ΛCDM Cosmological Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root {
+  --bg:     #080e1e;
+  --panel:  #0c1428;
+  --border: rgba(79, 195, 247, 0.18);
+  --cyan:   #4fc3f7;
+  --lcyan:  #81d4fa;
+  --muted:  #546e7a;
+  --text:   #cfd8dc;
+  --font-mono: 'Space Mono', monospace;
+  --font-body: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; width: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ──────────────────────────────────────────── */
+#header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5, 9, 22, 0.95);
+  backdrop-filter: blur(10px);
+}
+#header h1 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+.header-meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+#backBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--cyan);
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-transform: uppercase;
+}
+#backBtn:hover { background: rgba(79,195,247,0.1); }
+
+/* ── METRICS ROW ─────────────────────────────────────── */
+#metrics {
+  flex-shrink: 0;
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.metric {
+  flex: 1;
+  background: var(--panel);
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+.metric-sub {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+/* ── CHARTS GRID ─────────────────────────────────────── */
+#chartsGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  min-height: 0;
+}
+.chart-cell {
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+.chart-label {
+  flex-shrink: 0;
+  padding: 6px 14px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.chart-label h3 {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.chart-label span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+}
+.chart-div { flex: 1; min-height: 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1 id="lbl-title">⬡ ΛCDM Cosmological Dashboard</h1>
+  <span class="header-meta" id="lbl-subtitle">Planck Collaboration 2020 · H₀ = 67.4 km/s/Mpc · Ωm = 0.315 · ΩΛ = 0.685</span>
+  <button id="backBtn" onclick="goBack()">← Galaxy Map</button>
+</div>
+
+<!-- KEY METRICS -->
+<div id="metrics">
+  <div class="metric">
+    <div class="metric-label" id="lbl-m1">Hubble Constant H₀</div>
+    <div class="metric-value">67.4</div>
+    <div class="metric-sub" id="lbl-m1-sub">km/s/Mpc (Planck 2020)</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label" id="lbl-m2">Matter Density Ωm</div>
+    <div class="metric-value">0.315</div>
+    <div class="metric-sub" id="lbl-m2-sub">Baryonic + Dark Matter</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label" id="lbl-m3">Dark Energy ΩΛ</div>
+    <div class="metric-value">0.685</div>
+    <div class="metric-sub" id="lbl-m3-sub">Cosmological Constant Λ</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label" id="lbl-m4">Age of Universe</div>
+    <div class="metric-value">13.8</div>
+    <div class="metric-sub" id="lbl-m4-sub">Gyr (from RK4 integration)</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label" id="lbl-m5">Hubble Law R²</div>
+    <div class="metric-value" id="m-r2">0.9997</div>
+    <div class="metric-sub" id="lbl-m5-sub">500-galaxy OLS fit</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label" id="lbl-m6">OLS Slope</div>
+    <div class="metric-value" id="m-slope">67.4</div>
+    <div class="metric-sub" id="lbl-m6-sub">km/s/Mpc</div>
+  </div>
+</div>
+
+<!-- CHARTS 2×2 GRID -->
+<div id="chartsGrid">
+
+  <!-- Chart 1: a(t) vs t -->
+  <div class="chart-cell">
+    <div class="chart-label">
+      <h3 id="lbl-c1-title">Scale Factor a(t) vs Cosmic Time</h3>
+      <span id="lbl-c1-sub">5 key epoch markers · RK4 ΛCDM solution</span>
+    </div>
+    <div class="chart-div" id="chart1"></div>
+  </div>
+
+  <!-- Chart 2: Hubble's Law v vs d -->
+  <div class="chart-cell">
+    <div class="chart-label">
+      <h3 id="lbl-c2-title">Hubble's Law — v vs d</h3>
+      <span id="hubble-legend">500 galaxies · σ_pec = 45 km/s</span>
+    </div>
+    <div class="chart-div" id="chart2"></div>
+  </div>
+
+  <!-- Chart 3: H(t) vs t (log scale) -->
+  <div class="chart-cell">
+    <div class="chart-label">
+      <h3 id="lbl-c3-title">Hubble Parameter H(t) vs Time</h3>
+      <span id="lbl-c3-sub">Log scale · Dark energy dominance visible</span>
+    </div>
+    <div class="chart-div" id="chart3"></div>
+  </div>
+
+  <!-- Chart 4: z vs d (non-linear cosmological redshift) -->
+  <div class="chart-cell">
+    <div class="chart-label">
+      <h3 id="lbl-c4-title">Cosmological Redshift z vs Distance</h3>
+      <span id="lbl-c4-sub">Non-linear due to spacetime stretching</span>
+    </div>
+    <div class="chart-div" id="chart4"></div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// DATA INJECTED FROM PYTHON
+// ============================================================
+const LCDM_CHART    = __LCDM_CHART_JSON__;      // Thinned table (~300 pts)
+const HUBBLE_PTS    = __HUBBLE_DATA_JSON__;      // 500 {d, v} points
+const HUBBLE_SLOPE  = __HUBBLE_SLOPE__;
+const HUBBLE_INTCPT = __HUBBLE_INTERCEPT__;
+const HUBBLE_R2     = __HUBBLE_R2__;
+const REDSHIFT_DATA = __REDSHIFT_DATA_JSON__;    // {z, d_mpc}
+const EPOCHS        = __EPOCH_BENCHMARKS_JSON__; // 5 milestone dicts
+const I18N        = __I18N_JSON__;
+
+let currentLang = '__CURRENT_LANG__';
+
+function t(key, replacements = {}) {
+  let val = (I18N[currentLang] && I18N[currentLang][key]) ? I18N[currentLang][key] : key;
+  for (const [k, v] of Object.entries(replacements)) {
+    val = val.replace(`{${k}}`, v);
+  }
+  return val;
+}
+
+function getEpochKey(lbl) {
+  const l = lbl.toLowerCase();
+  if (l.includes('present') || l.includes('ปัจจุบัน') || l.includes('現代')) return 'present_day';
+  if (l.includes('reionization') || l.includes('ยุคแตกตัวเป็นไอออน') || l.includes('宇宙再電離')) return 'reionization';
+  if (l.includes('galaxy') || l.includes('ดาราจักร') || l.includes('銀河形成')) return 'galaxy_formation';
+  if (l.includes('solar') || l.includes('สุริยะ') || l.includes('太陽系誕生')) return 'solar_born';
+  if (l.includes('dark energy') || l.includes('พลังงานมืด') || l.includes('ダークエネルギー')) return 'dark_energy_dom';
+  return l;
+}
+
+// Update metric cards values
+document.getElementById('m-r2').textContent    = HUBBLE_R2.toFixed(4);
+document.getElementById('m-slope').textContent = HUBBLE_SLOPE.toFixed(1);
+
+// ── SHARED PLOTLY LAYOUT BASE ──────────────────────────
+const LAYOUT_BASE = {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor:  'rgba(0,0,0,0)',
+  margin: { t: 4, r: 14, b: 42, l: 56 },
+  font: { family: "'Space Mono', monospace", size: 9, color: '#78909c' },
+  xaxis: {
+    gridcolor: 'rgba(79,195,247,0.08)',
+    linecolor: 'rgba(79,195,247,0.2)',
+    tickcolor: 'rgba(79,195,247,0.3)',
+    zerolinecolor: 'rgba(79,195,247,0.15)',
+  },
+  yaxis: {
+    gridcolor: 'rgba(79,195,247,0.08)',
+    linecolor: 'rgba(79,195,247,0.2)',
+    tickcolor: 'rgba(79,195,247,0.3)',
+    zerolinecolor: 'rgba(79,195,247,0.15)',
+  },
+  legend: { bgcolor:'rgba(0,0,0,0)', font:{ size:8 } },
+};
+
+const CONFIG = { responsive: true, displayModeBar: false };
+
+// ============================================================
+// CHART 1 — Scale Factor a(t) vs Cosmic Time t
+// ============================================================
+function buildChart1() {
+  const ts = LCDM_CHART.map(r => r.t);
+  const as = LCDM_CHART.map(r => r.a);
+
+  const trace1 = {
+    x: ts, y: as, mode: 'lines',
+    name: t('a_t_rk4_lcdm'),
+    line: { color: '#4fc3f7', width: 1.8 },
+  };
+
+  const trace2 = {
+    x: EPOCHS.map(e => e.t),
+    y: EPOCHS.map(e => e.a),
+    mode: 'markers+text',
+    name: t('key_epochs'),
+    marker: { symbol: 'diamond', size: 8, color: '#ff8a65', line:{ color:'#fff',width:1 } },
+    text:   EPOCHS.map(e => t(getEpochKey(e.label))),
+    textposition: 'top right',
+    textfont: { size: 7, color: '#ff8a65' },
+  };
+
+  const layout = Object.assign({}, LAYOUT_BASE, {
+    xaxis: Object.assign({}, LAYOUT_BASE.xaxis, {
+      title: { text: t('cosmic_time_t_gyr'), font:{size:9} }
+    }),
+    yaxis: Object.assign({}, LAYOUT_BASE.yaxis, {
+      title: { text: t('scale_factor_at'), font:{size:9} },
+      range: [0, 1.05],
+    }),
+    annotations: EPOCHS.map(e => ({
+      x: e.t, y: e.a,
+      text: `z=${e.z}`,
+      showarrow: false,
+      xanchor: 'left', yanchor: 'bottom',
+      font: { size: 7, color: '#78909c' },
+    })),
+  });
+
+  Plotly.newPlot('chart1', [trace1, trace2], layout, CONFIG);
+}
+
+// ============================================================
+// CHART 2 — Hubble's Law: v vs d
+// ============================================================
+function buildChart2() {
+  const ds   = HUBBLE_PTS.map(p => p.d);
+  const vs   = HUBBLE_PTS.map(p => p.v);
+  const dMax = Math.max(...ds);
+
+  const scatter = {
+    x: ds, y: vs, mode: 'markers',
+    name: t('simulated_galaxies'),
+    marker: { color: 'rgba(129,212,250,0.35)', size: 4, line:{ color:'rgba(79,195,247,0.5)', width:0.5 } },
+  };
+
+  const dLine = [0, dMax];
+  const vLine = dLine.map(d => HUBBLE_SLOPE * d + HUBBLE_INTCPT);
+  const regLine = {
+    x: dLine, y: vLine, mode: 'lines',
+    name: `${t('ols_fit_h0_r2')} H₀=${HUBBLE_SLOPE.toFixed(1)}  R²=${HUBBLE_R2.toFixed(4)}`,
+    line: { color: '#ff8a65', width: 2, dash: 'dash' },
+  };
+
+  const layout = Object.assign({}, LAYOUT_BASE, {
+    xaxis: Object.assign({}, LAYOUT_BASE.xaxis, {
+      title: { text: t('proper_distance_d_mpc'), font:{size:9} },
+    }),
+    yaxis: Object.assign({}, LAYOUT_BASE.yaxis, {
+      title: { text: t('recession_velocity_v_kms'), font:{size:9} },
+    }),
+    annotations: [{
+      x: dMax * 0.45, y: HUBBLE_SLOPE * dMax * 0.45 + HUBBLE_INTCPT + 300,
+      text: `v = H₀ · d + ε_pec`,
+      showarrow: false, font: { size: 9, color:'#4fc3f7' },
+    }, {
+      x: dMax * 0.65, y: HUBBLE_SLOPE * dMax * 0.2,
+      text: `R² = ${HUBBLE_R2.toFixed(4)}`,
+      showarrow: false, font: { size: 10, color:'#ff8a65', family:"'Space Mono', monospace" },
+    }],
+  });
+
+  Plotly.newPlot('chart2', [scatter, regLine], layout, CONFIG);
+}
+
+// ============================================================
+// CHART 3 — Hubble Parameter H(t) vs t  (log Y scale)
+// ============================================================
+function buildChart3() {
+  const ts = LCDM_CHART.map(r => r.t);
+  const Hs = LCDM_CHART.map(r => r.H);
+
+  const trace = {
+    x: ts, y: Hs, mode: 'lines',
+    name: t('h_t_kms_mpc'),
+    line: { color: '#ce93d8', width: 1.8 },
+    fill: 'tozeroy',
+    fillcolor: 'rgba(206,147,216,0.06)',
+  };
+
+  const deRow = LCDM_CHART.find(r => r.a >= 0.77) || {t:9.8, H:82};
+  const deAnnotation = {
+    x: deRow.t, y: Math.log10(deRow.H),
+    xref:'x', yref:'y',
+    text: t('dark_energy_dominates_ann'),
+    showarrow: true, arrowhead: 2, arrowcolor:'#a5d6a7',
+    font: { size: 8, color:'#a5d6a7' }, ax: 30, ay:-20,
+  };
+
+  const layout = Object.assign({}, LAYOUT_BASE, {
+    xaxis: Object.assign({}, LAYOUT_BASE.xaxis, {
+      title: { text: t('cosmic_time_t_gyr'), font:{size:9} },
+    }),
+    yaxis: Object.assign({}, LAYOUT_BASE.yaxis, {
+      type: 'log',
+      title: { text: t('h_t_kms_mpc_log'), font:{size:9} },
+    }),
+    annotations: [deAnnotation],
+  });
+
+  Plotly.newPlot('chart3', [trace], layout, CONFIG);
+}
+
+// ============================================================
+// CHART 4 — Cosmological Redshift z vs Comoving Distance d_c
+// ============================================================
+function buildChart4() {
+  const filtered = REDSHIFT_DATA.filter(r => r.z > 0 && r.d_mpc > 0);
+  const ds = filtered.map(r => r.d_mpc);
+  const zs = filtered.map(r => r.z);
+
+  const trace = {
+    x: ds, y: zs, mode: 'lines',
+    name: t('z_dc_redshift'),
+    line: { color: '#a5d6a7', width: 1.8 },
+  };
+
+  const dArr = [0, Math.max(...ds)*0.3];
+  const H0_approx = 67.4 / 299792; // H0/c in Mpc^-1
+  const vLine = {
+    x: dArr, y: dArr.map(d => H0_approx * d),
+    mode: 'lines', name: t('linear_approx'),
+    line: { color:'rgba(255,138,101,0.6)', width:1.2, dash:'dot' },
+  };
+
+  const layout = Object.assign({}, LAYOUT_BASE, {
+    xaxis: Object.assign({}, LAYOUT_BASE.xaxis, {
+      title: { text: t('comoving_distance_dc_mpc'), font:{size:9} },
+    }),
+    yaxis: Object.assign({}, LAYOUT_BASE.yaxis, {
+      title: { text: t('redshift_z_eq'), font:{size:9} },
+    }),
+    annotations: [{
+      x: Math.max(...ds)*0.55,
+      y: zs[Math.floor(zs.length*0.6)] || 2,
+      text: t('nonlinear_curvature_ann'),
+      showarrow: false, font:{ size:8, color:'#a5d6a7' },
+    }],
+  });
+
+  Plotly.newPlot('chart4', [trace, vLine], layout, CONFIG);
+}
+
+function renderAllCharts() {
+  buildChart1();
+  buildChart2();
+  buildChart3();
+  buildChart4();
+}
+
+function applyTranslations() {
+  document.getElementById('lbl-title').textContent = t('dashboard_title').replace('📊 ', '');
+  document.getElementById('backBtn').textContent = t('back_galaxy_btn');
+
+  // Metrics
+  document.getElementById('lbl-m1').textContent = t('dashboard_m1_lbl');
+  document.getElementById('lbl-m1-sub').textContent = t('dashboard_m1_sub');
+  document.getElementById('lbl-m2').textContent = t('dashboard_m2_lbl');
+  document.getElementById('lbl-m2-sub').textContent = t('dashboard_m2_sub');
+  document.getElementById('lbl-m3').textContent = t('dashboard_m3_lbl');
+  document.getElementById('lbl-m3-sub').textContent = t('dashboard_m3_sub');
+  document.getElementById('lbl-m4').textContent = t('dashboard_m4_lbl');
+  document.getElementById('lbl-m4-sub').textContent = t('dashboard_m4_sub');
+  document.getElementById('lbl-m5').textContent = t('dashboard_m5_lbl');
+  document.getElementById('lbl-m5-sub').textContent = t('dashboard_m5_sub');
+  document.getElementById('lbl-m6').textContent = t('dashboard_m6_lbl');
+  document.getElementById('lbl-m6-sub').textContent = t('dashboard_m6_sub');
+
+  // Cell titles
+  document.getElementById('lbl-c1-title').textContent = t('chart_c1_title');
+  document.getElementById('lbl-c1-sub').textContent = t('chart_c1_sub');
+  document.getElementById('lbl-c2-title').textContent = t('chart_c2_title');
+  document.getElementById('hubble-legend').textContent = `${t('simulated_galaxies_legend')} · R² = ${HUBBLE_R2.toFixed(4)} · slope = ${HUBBLE_SLOPE.toFixed(1)} km/s/Mpc`;
+  document.getElementById('lbl-c3-title').textContent = t('chart_c3_title');
+  document.getElementById('lbl-c3-sub').textContent = t('chart_c3_sub');
+  document.getElementById('lbl-c4-title').textContent = t('chart_c4_title');
+  document.getElementById('lbl-c4-sub').textContent = t('chart_c4_sub');
+
+  renderAllCharts();
+}
+// Initial call
+applyTranslations();
+
+// ── NAVIGATION ─────────────────────────────────────────
+function goBack() {
+  const url = '/?action=back_galaxy';
+  try { window.top.location.href = url; }
+  catch(e) { try { window.parent.location.href = url; } catch(e2) { window.open(url,'_top'); } }
+}
+</script>
+</body>
+</html>

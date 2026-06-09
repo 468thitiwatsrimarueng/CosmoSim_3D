@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ΛCDM Equation Reference — CosmoSim Theory Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #050916;
+  color: #e0f7fa;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.tp-header {
+  background: rgba(8,14,32,0.98);
+  border-bottom: 1px solid rgba(79,195,247,0.22);
+  padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(14px);
+}
+.tp-header-title {
+  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+  color: #4fc3f7; letter-spacing: 2px; text-transform: uppercase;
+}
+.tp-header-sub { font-size: 11px; color: #546e7a; margin-top: 2px; }
+.back-btn {
+  background: rgba(79,195,247,0.1); border: 1px solid rgba(79,195,247,0.35);
+  color: #4fc3f7; border-radius: 6px; padding: 6px 14px;
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+  transition: background 0.18s;
+}
+.back-btn:hover { background: rgba(79,195,247,0.22); }
+
+/* ── Main content ─────────────────────────────────────────── */
+.tp-content { padding: 20px 24px 32px; max-width: 900px; margin: 0 auto; }
+
+.section-title {
+  font-size: 11px; color: #546e7a; letter-spacing: 2px; text-transform: uppercase;
+  font-family: 'Space Mono', monospace; margin-bottom: 16px; margin-top: 24px;
+  padding-bottom: 6px; border-bottom: 1px solid rgba(79,195,247,0.10);
+}
+
+/* ── Equation Cards ───────────────────────────────────────── */
+.eq-card {
+  background: rgba(8,14,32,0.85);
+  border: 1px solid rgba(79,195,247,0.18);
+  border-radius: 10px;
+  padding: 20px 24px 22px;
+  margin-bottom: 18px;
+  transition: border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.eq-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  background: linear-gradient(180deg, #4fc3f7, #0d47a1);
+  border-radius: 3px 0 0 3px;
+}
+.eq-card:hover { border-color: rgba(79,195,247,0.35); }
+
+.eq-num {
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  color: #1565c0; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px;
+}
+.eq-name {
+  font-size: 15px; font-weight: 600; color: #e0f7fa; margin-bottom: 14px; line-height: 1.4;
+}
+.eq-origin {
+  font-size: 11px; color: #546e7a; margin-bottom: 14px; font-style: italic;
+}
+
+/* ── LaTeX display box ────────────────────────────────────── */
+.eq-math {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(79,195,247,0.12);
+  border-radius: 8px;
+  padding: 18px 16px;
+  text-align: center;
+  margin: 12px 0 16px;
+  overflow-x: auto;
+}
+.eq-math .katex { font-size: 1.5em !important; }
+.eq-math .katex-display { margin: 0 !important; }
+
+/* ── Description ─────────────────────────────────────────── */
+.eq-desc {
+  font-size: 13px; color: #90a4ae; line-height: 1.85;
+  border-top: 1px solid rgba(79,195,247,0.08);
+  padding-top: 14px; margin-top: 4px;
+}
+.eq-desc p { margin-bottom: 8px; }
+.eq-desc p:last-child { margin-bottom: 0; }
+
+/* ── Variable table ───────────────────────────────────────── */
+.eq-vars {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(110px, auto) 1fr;
+  gap: 0;
+  border: 1px solid rgba(79,195,247,0.10);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.var-hdr {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: #37474f;
+  letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px;
+  background: rgba(0,0,0,0.3);
+}
+.var-hdr:nth-child(2) { border-left: 1px solid rgba(79,195,247,0.10); }
+.var-row-sym {
+  font-family: 'Space Mono', monospace; font-size: 11px; color: #81d4fa;
+  padding: 7px 12px; border-top: 1px solid rgba(79,195,247,0.07);
+  background: rgba(0,0,0,0.2);
+}
+.var-row-desc {
+  font-size: 11px; color: #607d8b; padding: 7px 12px;
+  border-top: 1px solid rgba(79,195,247,0.07);
+  border-left: 1px solid rgba(79,195,247,0.10);
+}
+
+/* ── This Simulation badge ────────────────────────────────── */
+.sim-badge {
+  display: inline-block; padding: 3px 9px; border-radius: 3px;
+  background: rgba(79,195,247,0.10); border: 1px solid rgba(79,195,247,0.28);
+  font-family: 'Space Mono', monospace; font-size: 9px; color: #4fc3f7;
+  letter-spacing: 1px; text-transform: uppercase; margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Constants panel ──────────────────────────────────────── */
+.constants-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-top: 16px;
+}
+.const-card {
+  background: rgba(8,14,32,0.85);
+  border: 1px solid rgba(79,195,247,0.15); border-radius: 8px;
+  padding: 14px 16px; text-align: center;
+}
+.const-sym { font-family: 'Space Mono', monospace; font-size: 13px; color: #4fc3f7; font-weight: 700; }
+.const-val { font-size: 18px; font-weight: 600; color: #e0f7fa; margin: 6px 0; }
+.const-desc { font-size: 11px; color: #546e7a; }
+.const-src  { font-size: 10px; color: #37474f; margin-top: 4px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="tp-header">
+  <div>
+    <div class="tp-header-title" id="lbl-theory-header-title">📐 Equation Reference & Theory Panel</div>
+    <div class="tp-header-sub" id="lbl-theory-header-sub">ΛCDM Cosmological Model — Friedmann Equations, Hubble Flow & Physical Coordinates</div>
+  </div>
+  <button class="back-btn" id="lbl-back-btn" onclick="goBack()">← Galaxy Map</button>
+</div>
+
+<div class="tp-content">
+
+  <!-- ── Section: Physical Constants ────────────────────── -->
+  <div class="section-title" id="lbl-sec-constants">Planck Collaboration 2020 — Physical Constants</div>
+  <div class="constants-grid">
+    <div class="const-card">
+      <div class="const-sym">H₀</div>
+      <div class="const-val">67.4</div>
+      <div class="const-desc" id="const-h0-desc">Hubble Constant [km/s/Mpc]</div>
+      <div class="const-src" id="const-h0-src">Planck 2020 (TT,TE,EE+lowE+lensing)</div>
+    </div>
+    <div class="const-card">
+      <div class="const-sym">Ωm</div>
+      <div class="const-val">0.315</div>
+      <div class="const-desc" id="const-om-desc">Matter density parameter</div>
+      <div class="const-src" id="const-om-src">Includes baryonic + dark matter</div>
+    </div>
+    <div class="const-card">
+      <div class="const-sym">ΩΛ</div>
+      <div class="const-val">0.685</div>
+      <div class="const-desc" id="const-ol-desc">Dark energy density parameter</div>
+      <div class="const-src" id="const-ol-src">Ωm + ΩΛ = 1 (flat universe, k=0)</div>
+    </div>
+    <div class="const-card">
+      <div class="const-sym">k</div>
+      <div class="const-val">0</div>
+      <div class="const-desc" id="const-k-desc">Spatial curvature parameter</div>
+      <div class="const-src" id="const-k-src">Flat ΛCDM — confirmed by CMB data</div>
+    </div>
+    <div class="const-card">
+      <div class="const-sym">t₀</div>
+      <div class="const-val">13.8 Gyr</div>
+      <div class="const-desc" id="const-t0-desc">Age of the Universe</div>
+      <div class="const-src" id="const-t0-src">Normalized to 14.0 Gyr in simulation</div>
+    </div>
+    <div class="const-card">
+      <div class="const-sym">a(t₀)</div>
+      <div class="const-val">1.000</div>
+      <div class="const-desc" id="const-a-desc">Scale factor at present</div>
+      <div class="const-src" id="const-a-src">By convention; a=0 at Big Bang</div>
+    </div>
+  </div>
+
+  <!-- ── Section: Equations ─────────────────────────────── -->
+  <div class="section-title" id="lbl-sec-equations" style="margin-top:28px">Core ΛCDM Equations</div>
+
+  <!-- EQ 1: General Friedmann Equation -->
+  <div class="eq-card">
+    <div class="eq-num" id="eq1-num">Equation 1</div>
+    <div class="eq-name" id="eq1-name">General Friedmann Equation <span class="sim-badge" id="eq1-badge">Foundation</span></div>
+    <div class="eq-origin" id="eq1-origin">Alexander Friedmann (1922) · Einstein Field Equations applied to a homogeneous, isotropic universe</div>
+
+    <div class="eq-math" id="eq1"></div>
+
+    <div class="eq-desc" id="eq1-desc">
+      <p>The Friedmann equation is the cosmological master equation governing the <strong>expansion rate of the universe</strong>. It emerges directly from Einstein's General Relativity field equations applied to the Friedmann-Lemaître-Robertson-Walker (FLRW) metric, which describes a spatially homogeneous and isotropic universe.</p>
+      <p>The left-hand side is the <strong>Hubble parameter H(t) squared</strong> — the fractional rate of change of the scale factor. On the right, three distinct physical components compete: ordinary and dark matter density ρ drives gravitational attraction (decelerates expansion), spatial curvature k can help or hinder, and the cosmological constant Λ (dark energy) provides the repulsive force currently dominating the universe's acceleration.</p>
+    </div>
+
+    <div class="eq-vars">
+      <div class="var-hdr">Symbol</div><div class="var-hdr">Meaning</div>
+      <div class="var-row-sym">ȧ = da/dt</div><div class="var-row-desc" id="eq1-v1">Time derivative of the scale factor — universe's expansion velocity</div>
+      <div class="var-row-sym">a(t)</div><div class="var-row-desc" id="eq1-v2">Scale factor — dimensionless ratio of cosmic distances to their present-day values</div>
+      <div class="var-row-sym">G</div><div class="var-row-desc" id="eq1-v3">Newton's gravitational constant  (6.674 × 10⁻¹¹ N·m²/kg²)</div>
+      <div class="var-row-sym">ρ</div><div class="var-row-desc" id="eq1-v4">Total mass-energy density of the universe (matter + radiation)</div>
+      <div class="var-row-sym">k</div><div class="var-row-desc" id="eq1-v5">Spatial curvature: +1 (closed), 0 (flat), −1 (open). Observations show k ≈ 0</div>
+      <div class="var-row-sym">c</div><div class="var-row-desc" id="eq1-v6">Speed of light in vacuum  (2.998 × 10⁸ m/s)</div>
+      <div class="var-row-sym">Λ</div><div class="var-row-desc" id="eq1-v7">Cosmological constant — represents the energy density of empty space (dark energy)</div>
+    </div>
+  </div>
+
+  <!-- EQ 2: Flat ΛCDM ODE -->
+  <div class="eq-card">
+    <div class="eq-num" id="eq2-num">Equation 2</div>
+    <div class="eq-name" id="eq2-name">Flat ΛCDM First-Order ODE <span class="sim-badge" id="eq2-badge">Solved in This Sim</span></div>
+    <div class="eq-origin" id="eq2-origin">Simplified Friedmann Eq. for k=0 · Solved numerically by trapezoidal integration over 3000 steps</div>
+
+    <div class="eq-math" id="eq2"></div>
+
+    <div class="eq-desc" id="eq2-desc">
+      <p>For the <strong>flat universe case (k=0)</strong> confirmed by CMB observations, the Friedmann equation simplifies to this first-order ODE. Setting ρ = ρ₀·a⁻³ (matter density dilutes as volume grows) and substituting the density parameters Ωm and ΩΛ gives this elegant operational form.</p>
+      <p>This is the equation this simulation <strong>directly integrates</strong> via the trapezoidal method to build the a(t) lookup table. The integration gives us the cosmological time t(a), which is then inverted to a(t) on a uniform time grid, producing a table accurate to &lt;1% compared to Ned Wright's Cosmology Calculator.</p>
+      <p>Both the matter term (Ωm·a⁻³) and dark energy term (ΩΛ) coexist in the square root — the universe transitions from matter-dominated deceleration to dark-energy-dominated acceleration around t ≈ 7.38 Gyr.</p>
+    </div>
+
+    <div class="eq-vars">
+      <div class="var-hdr">Symbol</div><div class="var-hdr">Meaning &amp; Value</div>
+      <div class="var-row-sym">H₀</div><div class="var-row-desc" id="eq2-v1">Hubble constant at present day:  <strong>67.4 km/s/Mpc</strong>  (Planck 2020)</div>
+      <div class="var-row-sym">Ωm</div><div class="var-row-desc" id="eq2-v2">Matter density parameter:  <strong>0.315</strong>  — baryons + dark matter</div>
+      <div class="var-row-sym">ΩΛ</div><div class="var-row-desc" id="eq2-v3">Dark energy density parameter:  <strong>0.685</strong>  — cosmological constant</div>
+      <div class="var-row-sym">a⁻³</div><div class="var-row-desc" id="eq2-v4">Matter dilution factor — matter density falls as inverse cube of scale factor</div>
+      <div class="var-row-sym">da/dt</div><div class="var-row-desc" id="eq2-v5">Expansion rate — solved numerically at each time step in the integrator</div>
+    </div>
+  </div>
+
+  <!-- EQ 3: Physical vs Comoving Coordinates -->
+  <div class="eq-card">
+    <div class="eq-num" id="eq3-num">Equation 3</div>
+    <div class="eq-name" id="eq3-name">Physical vs. Comoving Coordinates <span class="sim-badge" id="eq3-badge">Rendered in Real-Time</span></div>
+    <div class="eq-origin" id="eq3-origin">FLRW metric decomposition · Core of every Hubble Flow visualization in this simulation</div>
+
+    <div class="eq-math" id="eq3"></div>
+
+    <div class="eq-desc" id="eq3-desc">
+      <p>This is the <strong>fundamental equation of cosmic expansion</strong> made visible by this simulation. Comoving coordinates x are <em>fixed</em> — they move with the cosmic grid, not with the expansion. Physical distances r_physical grow with the scale factor a(t).</p>
+      <p>When you drag the time slider left (toward the Big Bang), a(t) → 0 and all physical distances shrink toward the origin. Drag right to the present day and a(t) = 1. The <strong>blue comoving grid</strong> visible in the scene stretches in real-time, demonstrating that it is <em>space itself</em> that expands — not galaxies flying through space.</p>
+      <p><strong>Key insight:</strong> The 25 named star systems are placed at their real comoving coordinates. The 200+ NASA exoplanet host stars are also stored in comoving space. Every frame, all positions are multiplied by a(t) to derive physical positions.</p>
+    </div>
+
+    <div class="eq-vars">
+      <div class="var-hdr">Symbol</div><div class="var-hdr">Meaning</div>
+      <div class="var-row-sym">r_physical(t)</div><div class="var-row-desc" id="eq3-v1">Observable physical distance — what you would actually measure with a ruler today</div>
+      <div class="var-row-sym">a(t)</div><div class="var-row-desc" id="eq3-v2">Scale factor — retrieved from the ΛCDM integration table at each time step</div>
+      <div class="var-row-sym">x_comoving</div><div class="var-row-desc" id="eq3-v3">Comoving coordinate — fixed coordinate that "moves with" the cosmic expansion</div>
+    </div>
+  </div>
+
+  <!-- EQ 4: Hubble Law & Recession Velocity -->
+  <div class="eq-card">
+    <div class="eq-num" id="eq4-num">Equation 4</div>
+    <div class="eq-name" id="eq4-name">Hubble's Law &amp; Recession Velocity <span class="sim-badge" id="eq4-badge">H(t) Readout Live</span></div>
+    <div class="eq-origin" id="eq4-origin">Edwin Hubble (1929) · Generalized to time-varying H(t) form by ΛCDM theory</div>
+
+    <div class="eq-math" id="eq4"></div>
+
+    <div class="eq-desc" id="eq4-desc">
+      <p><strong>Hubble's Law</strong> states that every galaxy in the universe appears to recede from us at a speed proportional to its distance. The constant of proportionality is the Hubble parameter H(t). Today, H(t₀) = H₀ = 67.4 km/s/Mpc — meaning a galaxy 1 Megaparsec away recedes at 67.4 km/s; at 10 Mpc it recedes at 674 km/s.</p>
+      <p>Notice that H(t) is <em>not</em> a constant — it evolves as the universe's composition changes. In the matter-dominated era H(t) was much larger; dark energy is gradually making H(t) approach a constant again (the de Sitter limit). The simulation displays the <strong>live H(t) value</strong> in the control bar as you scrub through time.</p>
+    </div>
+
+    <div class="eq-vars">
+      <div class="var-hdr">Symbol</div><div class="var-hdr">Meaning</div>
+      <div class="var-row-sym">v</div><div class="var-row-desc" id="eq4-v1">Recession velocity of a distant object [km/s]</div>
+      <div class="var-row-sym">H(t)</div><div class="var-row-desc" id="eq4-v2">Time-dependent Hubble parameter = ȧ/a [km/s/Mpc] — shown live in control bar</div>
+      <div class="var-row-sym">d</div><div class="var-row-desc" id="eq4-v3">Proper (physical) distance to the object at time t</div>
+      <div class="var-row-sym">ȧ = da/dt</div><div class="var-row-desc" id="eq4-v4">Rate of change of the scale factor, computed from the ΛCDM ODE</div>
+    </div>
+  </div>
+
+  <!-- ── Section: Implementation Notes ─────────────────── -->
+  <div class="section-title" id="lbl-sec-impl" style="margin-top:8px">Numerical Implementation</div>
+  <div class="eq-card" style="border-color:rgba(79,195,247,0.12);">
+    <div class="eq-name" id="impl-title" style="font-size:13px;">How a(t) is computed in this simulation</div>
+    <div class="eq-desc" id="impl-desc" style="border-top:none;padding-top:0;">
+      <p><strong>Step 1 — Build t(a):</strong> Integrate the Friedmann ODE using the trapezoidal rule over 3000 steps from a=0.001 to a=1.5. Each step computes  dt = da / (a·H₀·√(Ωm·a⁻³ + ΩΛ)).</p>
+      <p><strong>Step 2 — Invert to a(t):</strong> The (a, t) pairs are linearly interpolated to produce 3001 uniformly-spaced (t, a) entries from t=0.1 to t=14.0 Gyr. This table is serialised as JSON and injected into the Three.js scene.</p>
+      <p><strong>Step 3 — Runtime lookup:</strong> Each slider tick triggers a binary search on the table, retrieving a(t), z, and H(t) in O(log n) time. All 200+ star positions are then updated via r = a(t) × x_comoving in a single JavaScript typed-array loop.</p>
+      <p><strong>Verification:</strong> The computed t(a=1) matches the Ned Wright Cosmology Calculator within &lt;1.25%, and the Hubble parameter H₀=67.4 km/s/Mpc is reproduced exactly at t₀.</p>
+    </div>
+  </div>
+
+</div><!-- /tp-content -->
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script>
+const I18N = __I18N_JSON__;
+let currentLang = '__CURRENT_LANG__';
+
+function t(key, replacements = {}) {
+  let val = (I18N[currentLang] && I18N[currentLang][key]) ? I18N[currentLang][key] : key;
+  for (const [k, v] of Object.entries(replacements)) {
+    val = val.replace(`{${k}}`, v);
+  }
+  return val;
+}
+
+function applyTranslations() {
+  document.getElementById('lbl-theory-header-title').textContent = t('theory_title');
+  document.getElementById('lbl-theory-header-sub').textContent = t('theory_subtitle');
+  document.getElementById('lbl-back-btn').textContent = t('back_galaxy_btn');
+
+  // Constants section
+  document.getElementById('lbl-sec-constants').textContent = t('theory_panel_hdr');
+  document.getElementById('const-h0-desc').textContent = t('constant_h0_desc');
+  document.getElementById('const-h0-src').textContent = t('constant_h0_src');
+  document.getElementById('const-om-desc').textContent = t('constant_omega_m_desc');
+  document.getElementById('const-om-src').textContent = t('constant_omega_m_src');
+  document.getElementById('const-ol-desc').textContent = t('constant_omega_l_desc');
+  document.getElementById('const-ol-src').textContent = t('constant_omega_l_src');
+  document.getElementById('const-k-desc').textContent = t('constant_k_desc');
+  document.getElementById('const-k-src').textContent = t('constant_k_src');
+  document.getElementById('const-t0-desc').textContent = t('constant_t0_desc');
+  document.getElementById('const-t0-src').textContent = t('constant_t0_src');
+  document.getElementById('const-a-desc').textContent = t('constant_a_desc');
+  document.getElementById('const-a-src').textContent = t('constant_a_src');
+
+  // Equations section
+  document.getElementById('lbl-sec-equations').textContent = t('theory_panel_eq_hdr');
+
+  // Equation 1
+  document.getElementById('eq1-num').textContent = t('eq1_num', 'Equation 1');
+  document.getElementById('eq1-name').innerHTML = `${t('eq1_name')} <span class="sim-badge" id="eq1-badge">${t('badge_foundation')}</span>`;
+  document.getElementById('eq1-origin').textContent = t('eq1_origin');
+  document.getElementById('eq1-desc').innerHTML = `<p>${t('eq1_desc_1')}</p><p>${t('eq1_desc_2')}</p>`;
+  
+  // Table headers
+  const symHdrs = document.querySelectorAll('.var-hdr');
+  if (symHdrs.length >= 8) {
+    symHdrs[0].textContent = t('eq_vars_sym');
+    symHdrs[1].textContent = t('eq_vars_meaning');
+    symHdrs[2].textContent = t('eq_vars_sym');
+    symHdrs[3].textContent = t('eq_vars_meaning');
+    symHdrs[4].textContent = t('eq_vars_sym');
+    symHdrs[5].textContent = t('eq_vars_meaning');
+    symHdrs[6].textContent = t('eq_vars_sym');
+    symHdrs[7].textContent = t('eq_vars_meaning');
+  }
+
+  document.getElementById('eq1-v1').textContent = t('eq_v1_desc');
+  document.getElementById('eq1-v2').textContent = t('eq_v2_desc');
+  document.getElementById('eq1-v3').textContent = t('eq_v3_desc');
+  document.getElementById('eq1-v4').textContent = t('eq_v4_desc');
+  document.getElementById('eq1-v5').textContent = t('eq_v5_desc');
+  document.getElementById('eq1-v6').textContent = t('eq_v6_desc');
+  document.getElementById('eq1-v7').textContent = t('eq_v7_desc');
+
+  // Equation 2
+  document.getElementById('eq2-num').textContent = t('eq2_num', 'Equation 2');
+  document.getElementById('eq2-name').innerHTML = `${t('eq2_name')} <span class="sim-badge" id="eq2-badge">${t('badge_solved')}</span>`;
+  document.getElementById('eq2-origin').textContent = t('eq2_origin');
+  document.getElementById('eq2-desc').innerHTML = `<p>${t('eq2_desc_1')}</p><p>${t('eq2_desc_2')}</p><p>${t('eq2_desc_3')}</p>`;
+  
+  // Custom description builds to preserve styling
+  if (currentLang === 'en') {
+    document.getElementById('eq2-v1').innerHTML = `Hubble constant at present day:  <strong>67.4 km/s/Mpc</strong>  (${t('constant_h0_src')})`;
+    document.getElementById('eq2-v2').innerHTML = `Matter density parameter:  <strong>0.315</strong>  — ${t('eq_v9_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v3').innerHTML = `Dark energy density parameter:  <strong>0.685</strong>  — ${t('eq_v10_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v4').textContent = t('eq_v11_desc');
+    document.getElementById('eq2-v5').textContent = t('eq_v12_desc');
+
+    document.getElementById('eq3-v1').textContent = t('eq_v13_desc');
+    document.getElementById('eq3-v2').textContent = `Scale factor — retrieved from the ΛCDM integration table at each time step`;
+    document.getElementById('eq3-v3').textContent = t('eq_v14_desc');
+
+    document.getElementById('eq4-v1').textContent = t('eq_v15_desc');
+    document.getElementById('eq4-v2').textContent = t('eq_v16_desc');
+    document.getElementById('eq4-v3').textContent = t('eq_v17_desc');
+    document.getElementById('eq4-v4').textContent = t('eq_v18_desc');
+  } else if (currentLang === 'th') {
+    document.getElementById('eq2-v1').innerHTML = `ค่าคงที่ฮับเบิล ณ วันปัจจุบัน: <strong>67.4 กม./วินาที/เมกะพาร์เซก</strong> (${t('constant_h0_src')})`;
+    document.getElementById('eq2-v2').innerHTML = `พารามิเตอร์ความหนาแน่นสสาร: <strong>0.315</strong> — ${t('eq_v9_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v3').innerHTML = `พารามิเตอร์ความหนาแน่นพลังงานมืด: <strong>0.685</strong> — ${t('eq_v10_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v4').textContent = t('eq_v11_desc');
+    document.getElementById('eq2-v5').textContent = t('eq_v12_desc');
+
+    document.getElementById('eq3-v1').textContent = t('eq_v13_desc');
+    document.getElementById('eq3-v2').textContent = t('eq_v14_desc');
+    document.getElementById('eq3-v3').textContent = t('eq_v15_desc');
+
+    document.getElementById('eq4-v1').textContent = t('eq_v16_desc');
+    document.getElementById('eq4-v2').textContent = t('eq_v17_desc');
+    document.getElementById('eq4-v3').textContent = t('eq_v13_desc');
+    document.getElementById('eq4-v4').textContent = t('eq_v18_desc');
+  } else if (currentLang === 'ja') {
+    document.getElementById('eq2-v1').innerHTML = `現代のハッブル定数: <strong>67.4 km/s/Mpc</strong> (${t('constant_h0_src')})`;
+    document.getElementById('eq2-v2').innerHTML = `物質密度パラメータ: <strong>0.315</strong> — ${t('eq_v9_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v3').innerHTML = `ダークエネルギー密度パラメータ: <strong>0.685</strong> — ${t('eq_v10_desc').split(' — ')[1] || ''}`;
+    document.getElementById('eq2-v4').textContent = t('eq_v11_desc');
+    document.getElementById('eq2-v5').textContent = t('eq_v12_desc');
+
+    document.getElementById('eq3-v1').textContent = t('eq_v13_desc');
+    document.getElementById('eq3-v2').textContent = t('eq_v14_desc');
+    document.getElementById('eq3-v3').textContent = t('eq_v15_desc');
+
+    document.getElementById('eq4-v1').textContent = t('eq_v16_desc');
+    document.getElementById('eq4-v2').textContent = t('eq_v17_desc');
+    document.getElementById('eq4-v3').textContent = t('eq_v13_desc');
+    document.getElementById('eq4-v4').textContent = t('eq_v18_desc');
+  }
+
+  // Equation 3
+  document.getElementById('eq3-num').textContent = t('eq3_num', 'Equation 3');
+  document.getElementById('eq3-name').innerHTML = `${t('eq3_name')} <span class="sim-badge" id="eq3-badge">${t('badge_rendered')}</span>`;
+  document.getElementById('eq3-origin').textContent = t('eq3_origin');
+  document.getElementById('eq3-desc').innerHTML = `<p>${t('eq3_desc_1')}</p><p>${t('eq3_desc_2')}</p><p>${t('eq3_desc_3')}</p>`;
+
+  // Equation 4
+  document.getElementById('eq4-num').textContent = t('eq4_num', 'Equation 4');
+  document.getElementById('eq4-name').innerHTML = `${t('eq4_name')} <span class="sim-badge" id="eq4-badge">${t('badge_live')}</span>`;
+  document.getElementById('eq4-origin').textContent = t('eq4_origin');
+  document.getElementById('eq4-desc').innerHTML = `<p>${t('eq4_desc_1')}</p><p>${t('eq4_desc_2')}</p><p>${t('eq4_desc_3')}</p>`;
+
+  // Implementation notes
+  document.getElementById('lbl-sec-impl').textContent = t('theory_panel_num_impl');
+  document.getElementById('impl-title').textContent = t('theory_panel_num_title');
+  document.getElementById('impl-desc').innerHTML = t('theory_panel_num_desc');
+}
+// LaTeX rendering setup
+const opts = { displayMode: true, throwOnError: false };
+katex.render(
+  String.raw`\left(\frac{\dot{a}}{a}\right)^{2} = \frac{8\pi G}{3}\rho - \frac{kc^{2}}{a^{2}} + \frac{\Lambda c^{2}}{3}`,
+  document.getElementById('eq1'), opts
+);
+
+// Equation 2 — Flat ΛCDM ODE
+katex.render(
+  String.raw`\frac{da}{dt} = a \cdot H_{0} \sqrt{\Omega_{m}\, a^{-3} + \Omega_{\Lambda}}`,
+  document.getElementById('eq2'), opts
+);
+
+// Equation 3 — Physical vs Comoving
+katex.render(
+  String.raw`r_{\mathrm{physical}}(t) = a(t)\cdot x_{\mathrm{comoving}}`,
+  document.getElementById('eq3'), opts
+);
+
+// Equation 4 — Hubble Law
+katex.render(
+  String.raw`v = \frac{dr}{dt} = H(t)\cdot d \qquad \text{where} \quad H(t) = \frac{\dot{a}}{a}`,
+  document.getElementById('eq4'), opts
+);
+
+applyTranslations();
+
+// Navigation
+function goBack(){
+  const url='/?action=back_galaxy';
+  try{window.top.location.href=url;}catch(e){try{window.parent.location.href=url;}catch(e2){window.open(url,'_top');}}
+}
+</script>
+</body>
+</html>

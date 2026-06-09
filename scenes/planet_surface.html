@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Planet Surface — Terrain Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { overflow: hidden; font-family: 'Inter', sans-serif; user-select: none; }
+canvas { display: block; }
+
+/* ── SURFACE HUD ─────────────────────────────────────── */
+#hud {
+  position: absolute;
+  top: 14px; left: 14px;
+  background: rgba(6, 10, 24, 0.90);
+  border: 1px solid rgba(79, 195, 247, 0.22);
+  border-radius: 8px;
+  padding: 12px 16px;
+  backdrop-filter: blur(12px);
+  z-index: 20;
+  pointer-events: none;
+  min-width: 220px;
+}
+#hud .hud-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(79,195,247,0.15);
+  padding-bottom: 5px;
+  margin-bottom: 8px;
+}
+.hud-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+.hud-k { color: #78909c; font-family: 'Space Mono', monospace; }
+.hud-v { color: #e0f7fa; font-family: 'Space Mono', monospace; font-weight: 700; }
+.hud-v.safe   { color: #80cbc4; }
+.hud-v.warn   { color: #ff8a65; }
+.hud-v.danger { color: #ef9a9a; }
+
+/* ── CLASSIFICATION BADGE ───────────────────────────── */
+#classBadge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 18px;
+  border-radius: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── TOP-RIGHT: LAUNCH BTN ──────────────────────────── */
+#launchBtn {
+  position: absolute;
+  top: 14px; right: 14px;
+  background: rgba(6, 10, 24, 0.88);
+  border: 1px solid rgba(79,195,247,0.28);
+  color: #4fc3f7;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 25;
+  transition: background 0.2s;
+}
+#launchBtn:hover { background: rgba(79,195,247,0.15); }
+
+/* ── SCAN PANEL ─────────────────────────────────────── */
+#scanPanel {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(6, 10, 24, 0.93);
+  border: 1px solid rgba(79,195,247,0.25);
+  border-radius: 10px;
+  padding: 14px 24px;
+  z-index: 20;
+  display: none;
+  min-width: 300px;
+  backdrop-filter: blur(12px);
+  text-align: center;
+}
+#scanPanel h4 {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: #4fc3f7;
+  margin-bottom: 6px;
+}
+#scanPanel .scan-body {
+  font-size: 12px;
+  color: #90a4ae;
+  line-height: 1.8;
+}
+
+/* ── CONTROLS ────────────────────────────────────────── */
+#ctrlHint {
+  position: absolute;
+  bottom: 16px; right: 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: #37474f;
+  text-align: right;
+  pointer-events: none;
+  z-index: 20;
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="hud-title" id="h-title" style="color:#4fc3f7;">🌍 PLANET SURFACE</div>
+  <div class="hud-row"><span class="hud-k" id="lbl-planet">Planet</span><span class="hud-v" id="h-name">—</span></div>
+  <div class="hud-row"><span class="hud-k" id="lbl-type">Type</span><span class="hud-v" id="h-type">—</span></div>
+  <div class="hud-row"><span class="hud-k" id="lbl-temp">Temperature</span><span class="hud-v" id="h-temp">—</span></div>
+  <div class="hud-row"><span class="hud-k" id="lbl-atmo">Atmosphere</span><span class="hud-v" id="h-atmo">—</span></div>
+  <div class="hud-row"><span class="hud-k" id="lbl-haz">Hazard</span><span class="hud-v" id="h-haz">—</span></div>
+  <div class="hud-row"><span class="hud-k" id="lbl-life">Flora / Fauna</span><span class="hud-v" id="h-life">—</span></div>
+</div>
+
+<div id="classBadge"></div>
+
+<button id="launchBtn" onclick="doLaunch()">↑ Launch</button>
+
+<div id="scanPanel">
+  <h4 id="scan-title"></h4>
+  <div class="scan-body" id="scan-body"></div>
+</div>
+
+<div id="ctrlHint">🖱 Drag · Scroll<br>Click Fauna/Crystal</div>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+
+<script>
+// ── DATA FROM PYTHON ──────────────────────────────────
+const CFG          = __PLANET_CONFIG__;
+const PLANET_NAME  = '__PLANET_NAME__';
+const PLANET_TYPE  = '__PLANET_TYPE__';
+const TEMPERATURE  = __TEMPERATURE__;
+const HAZARD       = '__HAZARD__';
+const FLORA_COUNT  = __FLORA__;
+const FAUNA_COUNT  = __FAUNA__;
+const PLANET_ATMO  = '__ATMO__';
+const SYSTEM_SEED_STR = '__SYSTEM_SEED__';
+const I18N        = __I18N_JSON__;
+
+let currentLang = '__CURRENT_LANG__';
+
+function t(key, replacements = {}) {
+  let val = (I18N[currentLang] && I18N[currentLang][key]) ? I18N[currentLang][key] : key;
+  for (const [k, v] of Object.entries(replacements)) {
+    val = val.replace(`{${k}}`, v);
+  }
+  return val;
+}
+
+function translateResource(name) {
+  for (const lang of ['en', 'th', 'ja']) {
+    if (I18N[lang]) {
+      for (const [key, val] of Object.entries(I18N[lang])) {
+        if (key.startsWith('res_') && val === name) {
+          return t(key);
+        }
+      }
+    }
+  }
+  return name;
+}
+
+// Classification rules engine
+function classify(type, temp, atmo, hasWater) {
+  let palette;
+  switch (type) {
+    case 'Lush':    palette = { sky:[0.22,0.55,0.85], ground:[0.12,0.42,0.12], fog:[0.15,0.35,0.15], bloom:0.6, particle:'none',      ambMult:1.0 }; break;
+    case 'Desert':  palette = { sky:[0.80,0.58,0.28], ground:[0.72,0.50,0.22], fog:[0.65,0.45,0.20], bloom:0.4, particle:'sandstorm', ambMult:1.2 }; break;
+    case 'Ice':     palette = { sky:[0.65,0.80,0.92], ground:[0.82,0.90,0.97], fog:[0.70,0.82,0.95], bloom:0.9, particle:'snow',       ambMult:0.8 }; break;
+    case 'Toxic':   palette = { sky:[0.18,0.42,0.12], ground:[0.22,0.18,0.30], fog:[0.15,0.28,0.10], bloom:1.0, particle:'toxic_rain', ambMult:0.7 }; break;
+    case 'Ocean':   palette = { sky:[0.15,0.38,0.72], ground:[0.08,0.18,0.45], fog:[0.12,0.28,0.52], bloom:0.7, particle:'rain',       ambMult:0.9 }; break;
+    case 'Volcanic':palette = { sky:[0.55,0.12,0.05], ground:[0.25,0.08,0.04], fog:[0.40,0.10,0.05], bloom:1.2, particle:'ash',        ambMult:0.6 }; break;
+    case 'Exotic':  palette = { sky:[0.42,0.08,0.70], ground:[0.50,0.22,0.60], fog:[0.35,0.10,0.55], bloom:1.3, particle:'none',       ambMult:0.8 }; break;
+    default:        palette = { sky:[0.25,0.25,0.28], ground:[0.35,0.32,0.28], fog:[0.20,0.20,0.22], bloom:0.3, particle:'none',       ambMult:0.6 }; break; // Barren
+  }
+  return palette;
+}
+
+const PAL = classify(PLANET_TYPE, TEMPERATURE, PLANET_ATMO, CFG.has_water);
+
+// Classification badge styling
+const BADGE_STYLES = {
+  'Lush':    { bg:'rgba(46,125,50,0.18)',  border:'rgba(76,175,80,0.4)',   color:'#a5d6a7', icon:'🌿' },
+  'Desert':  { bg:'rgba(121,85,72,0.18)', border:'rgba(161,136,127,0.4)', color:'#d7ccc8', icon:'🏜️' },
+  'Ice':     { bg:'rgba(1,87,155,0.18)',  border:'rgba(3,169,244,0.4)',   color:'#b3e5fc', icon:'❄️' },
+  'Toxic':   { bg:'rgba(39,55,70,0.18)',  border:'rgba(139,195,74,0.4)',  color:'#dcedc8', icon:'☠️' },
+  'Ocean':   { bg:'rgba(1,71,133,0.18)',  border:'rgba(0,150,136,0.4)',   color:'#b2dfdb', icon:'🌊' },
+  'Volcanic':{ bg:'rgba(98,10,2,0.22)',   border:'rgba(244,67,54,0.4)',   color:'#ffcdd2', icon:'🌋' },
+  'Exotic':  { bg:'rgba(74,20,140,0.20)', border:'rgba(156,39,176,0.4)', color:'#e1bee7', icon:'🔮' },
+  'Barren':  { bg:'rgba(33,33,33,0.18)',  border:'rgba(120,120,120,0.3)', color:'#bdbdbd', icon:'🪨' },
+};
+const BS = BADGE_STYLES[PLANET_TYPE] || BADGE_STYLES['Barren'];
+
+function applyTranslations() {
+  document.getElementById('h-title').textContent = '🌍 ' + t('planet_surface_hud_title');
+  document.getElementById('lbl-planet').textContent = t('planet_label');
+  document.getElementById('lbl-type').textContent = t('planet_type_label');
+  document.getElementById('lbl-temp').textContent = t('temperature_label');
+  document.getElementById('lbl-atmo').textContent = t('atmosphere_label');
+  document.getElementById('lbl-haz').textContent = t('hazard_label');
+  document.getElementById('lbl-life').textContent = t('flora_fauna_label');
+
+  document.getElementById('launchBtn').textContent = t('launch_btn');
+  document.getElementById('ctrlHint').innerHTML = t('ctrl_hint');
+
+  document.getElementById('h-name').textContent = PLANET_NAME;
+  document.getElementById('h-type').textContent = t('type_' + PLANET_TYPE);
+  
+  const tempEl = document.getElementById('h-temp');
+  tempEl.textContent  = TEMPERATURE + '°C';
+  tempEl.className    = 'hud-v ' + (TEMPERATURE > 50 ? 'danger' : TEMPERATURE < -50 ? 'warn' : 'safe');
+  
+  document.getElementById('h-atmo').textContent = PLANET_ATMO.substring(0,18);
+  
+  const hazEl = document.getElementById('h-haz');
+  hazEl.textContent  = t('hazard_' + HAZARD);
+  hazEl.className    = 'hud-v ' + (HAZARD === 'None' ? 'safe' : 'danger');
+  
+  document.getElementById('h-life').textContent = FLORA_COUNT + ' / ' + FAUNA_COUNT;
+
+  const badge = document.getElementById('classBadge');
+  badge.textContent = BS.icon + '  ' + t('type_' + PLANET_TYPE).toUpperCase() + ' ' + t('class_label').toUpperCase();
+  badge.style.cssText = `background:${BS.bg};border:1px solid ${BS.border};color:${BS.color};`;
+}
+
+applyTranslations();
+
+// ── THREE.JS SCENE ────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(PAL.sky[0]*0.12, PAL.sky[1]*0.12, PAL.sky[2]*0.12);
+scene.fog = new THREE.FogExp2(
+  new THREE.Color(PAL.fog[0]*0.08, PAL.fog[1]*0.08, PAL.fog[2]*0.08), 0.0025
+);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 3000);
+camera.position.set(0, 15, 35);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.06;
+controls.maxPolarAngle  = Math.PI / 2.05;
+controls.minDistance    = 5;
+controls.maxDistance    = 600;
+controls.screenSpacePanning = false;
+
+const bloom = new THREE.UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight), PAL.bloom, 0.5, 0.35
+);
+const composer = new THREE.EffectComposer(renderer);
+composer.addPass(new THREE.RenderPass(scene, camera));
+composer.addPass(bloom);
+
+// ── LIGHTING (type-specific) ──────────────────────────
+const sunColor = new THREE.Color(PAL.sky[0], PAL.sky[1], PAL.sky[2]);
+const sun = new THREE.DirectionalLight(sunColor.clone().lerp(new THREE.Color(1,1,1), 0.5), 1.8);
+sun.position.set(60, 100, 40);
+sun.castShadow = true;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(
+  new THREE.Color(PAL.sky[0]*0.3, PAL.sky[1]*0.3, PAL.sky[2]*0.3), 0.55
+));
+scene.add(new THREE.HemisphereLight(
+  new THREE.Color(PAL.sky[0], PAL.sky[1], PAL.sky[2]),
+  new THREE.Color(PAL.ground[0]*0.5, PAL.ground[1]*0.5, PAL.ground[2]*0.5),
+  0.45
+));
+
+// ============================================================
+// DETERMINISTIC PRNG — seeded via MD5-like hash of system name
+// Ensures reproducibility: same planet always same terrain
+// ============================================================
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Convert string seed to uint32 via simple hash
+function strHash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h;
+}
+const SEED_INT = CFG.seed_val || strHash(SYSTEM_SEED_STR + PLANET_NAME);
+const RNG      = mulberry32(SEED_INT);
+
+// ============================================================
+// 5-OCTAVE FRACTAL BROWNIAN MOTION TERRAIN
+// ============================================================
+function hash2D(ix, iz) {
+  const n = ix * 127 + iz * 311 + SEED_INT;
+  let h = Math.sin(n) * 43758.5453123;
+  return h - Math.floor(h);
+}
+function smoothNoise(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z);
+  const fx = x - ix,       fz = z - iz;
+  const ux = fx*fx*(3-2*fx), uz = fz*fz*(3-2*fz);
+  const a = hash2D(ix,   iz),   b = hash2D(ix+1, iz);
+  const c = hash2D(ix,   iz+1), d = hash2D(ix+1, iz+1);
+  return a + (b-a)*ux + (c-a)*uz + (a-b-c+d)*ux*uz;
+}
+function fbm(x, z, octaves=5) {
+  let v=0, amp=1.0, freq=1.0, maxAmp=0;
+  for (let i=0; i<octaves; i++) {
+    v      += smoothNoise(x*freq, z*freq) * amp;
+    maxAmp += amp;
+    amp    *= 0.5;
+    freq   *= 2.0;
+  }
+  return v / maxAmp;
+}
+
+// Height amplitude per classification
+const HEIGHT_AMP = {
+  'Lush':5, 'Desert':8, 'Ice':4, 'Toxic':6,
+  'Ocean':2, 'Volcanic':14, 'Exotic':10, 'Barren':7
+}[PLANET_TYPE] || 6;
+
+// ── TERRAIN MESH ──────────────────────────────────────
+const TERR_SIZE = 400, TERR_SEG = 100;
+const terrGeo = new THREE.PlaneGeometry(TERR_SIZE, TERR_SIZE, TERR_SEG, TERR_SEG);
+terrGeo.rotateX(-Math.PI / 2);
+const posAttr = terrGeo.attributes.position;
+for (let i = 0; i < posAttr.count; i++) {
+  const x = posAttr.getX(i), z = posAttr.getZ(i);
+  const h = fbm(x * 0.018, z * 0.018) * HEIGHT_AMP
+           + fbm(x * 0.04,  z * 0.04)  * HEIGHT_AMP * 0.4;
+  posAttr.setY(i, h);
+}
+terrGeo.computeVertexNormals();
+
+const gc = PAL.ground;
+const terrain = new THREE.Mesh(terrGeo, new THREE.MeshStandardMaterial({
+  color: new THREE.Color(gc[0], gc[1], gc[2]),
+  roughness: 0.92, metalness: 0.04, flatShading: true
+}));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+// ── OCEAN PLANE (if water present) ────────────────────
+if (CFG.has_water) {
+  const water = new THREE.Mesh(
+    new THREE.PlaneGeometry(TERR_SIZE*2, TERR_SIZE*2),
+    new THREE.MeshStandardMaterial({
+      color: 0x1565c0, transparent: true, opacity: 0.62,
+      roughness: 0.08, metalness: 0.35
+    })
+  );
+  water.rotation.x = -Math.PI/2;
+  water.position.y = HEIGHT_AMP * 0.25;
+  scene.add(water);
+}
+
+// ── TERRAIN HEIGHT SAMPLER ────────────────────────────
+function terrainY(x, z) {
+  return fbm(x*0.018, z*0.018) * HEIGHT_AMP
+       + fbm(x*0.04,  z*0.04)  * HEIGHT_AMP * 0.4;
+}
+
+// ── VEGETATION / STRUCTURES ───────────────────────────
+const treeColor1 = new THREE.Color(gc[0]*0.75, Math.min(1,gc[1]*1.3), gc[2]*0.65);
+const treeColor2 = new THREE.Color(gc[0]*1.2, gc[1]*0.85, Math.min(1,gc[2]*1.3));
+
+for (let i = 0; i < CFG.flora * 18; i++) {
+  const x = (RNG()-0.5)*TERR_SIZE*0.82;
+  const z = (RNG()-0.5)*TERR_SIZE*0.82;
+  const y = terrainY(x, z);
+  if (CFG.has_water && y < HEIGHT_AMP*0.28) continue;
+
+  const h  = RNG()*4 + 2;
+  const col = (i%2 === 0) ? treeColor1 : treeColor2;
+
+  let mesh;
+  if (PLANET_TYPE === 'Lush' || PLANET_TYPE === 'Tropical') {
+    const grp = new THREE.Group();
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.28, h*0.42, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.95 })
+    );
+    trunk.position.y = h*0.21;
+    const crown = new THREE.Mesh(
+      new THREE.ConeGeometry(h*0.42, h*0.7, 8),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 })
+    );
+    crown.position.y = h*0.65;
+    grp.add(trunk, crown);
+    mesh = grp;
+  } else if (PLANET_TYPE === 'Exotic') {
+    mesh = new THREE.Mesh(
+      new THREE.OctahedronGeometry(h*0.3, 1),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 })
+    );
+    mesh.position.y = h*0.3;
+  } else {
+    mesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(RNG()*1.2 + 0.5, 1),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.9 })
+    );
+    mesh.position.y = 0.5;
+  }
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  scene.add(mesh);
+}
+
+// ── RESOURCE CRYSTALS ─────────────────────────────────
+const crystals = [];
+(CFG.resources||[]).forEach((r, ri) => {
+  for (let i = 0; i < 5; i++) {
+    const x = (RNG()-0.5)*TERR_SIZE*0.6;
+    const z = (RNG()-0.5)*TERR_SIZE*0.6;
+    const y = terrainY(x, z);
+    if (CFG.has_water && y < HEIGHT_AMP*0.28) continue;
+    const col  = new THREE.Color(r.color);
+    const mesh = new THREE.Mesh(
+      new THREE.OctahedronGeometry(1.3, 0),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.88 })
+    );
+    mesh.position.set(x, y+1.6, z);
+    mesh.userData = { resource: r.name };
+    const halo = new THREE.Mesh(
+      new THREE.OctahedronGeometry(2.0, 0),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.12 })
+    );
+    mesh.add(halo);
+    scene.add(mesh);
+    crystals.push(mesh);
+  }
+});
+
+// ── FAUNA ─────────────────────────────────────────────
+const faunaObjs = [];
+for (let i = 0; i < Math.min(CFG.fauna_count, 7); i++) {
+  const fd = CFG.fauna_list?.[i];
+  if (!fd) continue;
+  const x  = (RNG()-0.5)*TERR_SIZE*0.42;
+  const z  = (RNG()-0.5)*TERR_SIZE*0.42;
+  const y  = terrainY(x, z);
+  if (CFG.has_water && y < HEIGHT_AMP*0.28) continue;
+  const fc = new THREE.Color(fd.color[0], fd.color[1], fd.color[2]);
+  const sz = fd.size * 0.5;
+  let body;
+  if (fd.shape === 'quadruped' || fd.shape === 'biped') {
+    body = new THREE.Group();
+    body.add(new THREE.Mesh(
+      new THREE.SphereGeometry(sz, 8, 8),
+      new THREE.MeshStandardMaterial({ color: fc, roughness: 0.65 })
+    ));
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(sz*0.5, 8, 8),
+      new THREE.MeshStandardMaterial({ color: fc.clone().lerp(new THREE.Color(1,1,1),0.18) })
+    );
+    head.position.set(sz*0.85, sz*0.35, 0);
+    body.add(head);
+  } else if (fd.shape === 'avian') {
+    body = new THREE.Mesh(
+      new THREE.ConeGeometry(sz*0.5, sz*2, 6),
+      new THREE.MeshStandardMaterial({ color: fc })
+    );
+  } else {
+    body = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(sz, 0),
+      new THREE.MeshStandardMaterial({ color: fc, roughness: 0.5 })
+    );
+  }
+  body.position.set(x, y+sz, z);
+  body.userData = { faunaData: fd };
+  body.castShadow = true;
+  scene.add(body);
+  faunaObjs.push({
+    mesh: body, baseY: y+sz,
+    angle: RNG()*Math.PI*2,
+    speed: RNG()*0.4 + 0.15,
+    radius: RNG()*18 + 8,
+    cx: x, cz: z,
+    bobSpeed: RNG()*2 + 1,
+  });
+}
+
+// ── WEATHER PARTICLES ─────────────────────────────────
+const WC = 3500;
+let weatherGeo = null, weatherVel = null;
+if (PAL.particle !== 'none') {
+  const wPos = new Float32Array(WC*3);
+  weatherVel = new Float32Array(WC);
+  for (let i = 0; i < WC; i++) {
+    wPos[i*3]   = (RNG()-0.5)*200;
+    wPos[i*3+1] = RNG()*80;
+    wPos[i*3+2] = (RNG()-0.5)*200;
+    weatherVel[i] = RNG()*2 + 1;
+  }
+  weatherGeo = new THREE.BufferGeometry();
+  weatherGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3));
+  const wColMap = {
+    'snow':0xddeeff, 'rain':0x5588aa, 'sandstorm':0xcc8844,
+    'toxic_rain':0x88cc44, 'ash':0x885544
+  };
+  scene.add(new THREE.Points(weatherGeo, new THREE.PointsMaterial({
+    color: wColMap[PAL.particle] || 0xffffff,
+    size: PAL.particle === 'snow' ? 1.6 : 0.9,
+    transparent: true, opacity: 0.55
+  })));
+}
+
+// ── RAYCASTING / CLICK ────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse     = new THREE.Vector2();
+let clickMoved  = false, downX = 0, downY = 0;
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  downX = e.clientX; downY = e.clientY; clickMoved = false; document.body.focus();
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (Math.abs(e.clientX-downX)>5 || Math.abs(e.clientY-downY)>5) clickMoved = true;
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (clickMoved) return;
+  mouse.x =  (e.clientX/innerWidth)*2 - 1;
+  mouse.y = -(e.clientY/innerHeight)*2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // Fauna scan
+  const fMeshes = faunaObjs.map(f => f.mesh instanceof THREE.Group ? f.mesh.children[0] : f.mesh);
+  const fHits   = raycaster.intersectObjects(fMeshes, true);
+  if (fHits.length > 0) {
+    let obj = fHits[0].object;
+    while (obj.parent && !obj.parent.userData.faunaData) obj = obj.parent;
+    const target = obj.userData.faunaData ? obj : obj.parent;
+    const fd = target?.userData?.faunaData;
+    if (fd) {
+      const shapeTrans = t('shape_' + fd.shape.toLowerCase());
+      const temperTrans = t(fd.temper.toLowerCase() + '_val');
+      const rarityTrans = t(fd.rarity.toLowerCase() + '_val');
+      showScan('🐾 ' + fd.name, `${t('fauna_shape_label')}: ${shapeTrans}  ·  ${t('fauna_size_label')}: ${fd.size}m<br>${t('fauna_temper_label')}: ${temperTrans}  ·  ${t('fauna_rarity_label')}: ${rarityTrans}`);
+      return;
+    }
+  }
+  // Crystal scan
+  const cHits = raycaster.intersectObjects(crystals, true);
+  if (cHits.length > 0) {
+    let obj = cHits[0].object;
+    while (obj.parent && obj.userData.resource === undefined) obj = obj.parent;
+    if (obj.userData.resource !== undefined) {
+      showScan('⛏ ' + translateResource(obj.userData.resource), t('deposit_identified'));
+      return;
+    }
+  }
+  hideScan();
+});
+
+let scanTimer = null;
+function showScan(title, body) {
+  document.getElementById('scan-title').textContent = title;
+  document.getElementById('scan-body').innerHTML    = body;
+  document.getElementById('scanPanel').style.display = 'block';
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(hideScan, 4000);
+}
+function hideScan() {
+  document.getElementById('scanPanel').style.display = 'none';
+}
+
+// ── NAVIGATION ────────────────────────────────────────
+function doLaunch() {
+  const url = '/?action=launch';
+  try { window.top.location.href = url; }
+  catch(e) { try { window.parent.location.href = url; } catch(e2) { window.open(url,'_top'); } }
+}
+
+// ── FOCUS FIX ─────────────────────────────────────────
+renderer.domElement.addEventListener('pointerdown', () => {
+  renderer.domElement.setAttribute('tabindex','0');
+  renderer.domElement.focus();
+});
+document.addEventListener('keydown', e => {
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+
+// ── RENDER LOOP ───────────────────────────────────────
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta(), t = clock.getElapsedTime();
+
+  // Fauna movement (circular patrol)
+  faunaObjs.forEach(fg => {
+    fg.angle += fg.speed * dt;
+    const nx = fg.cx + Math.cos(fg.angle)*fg.radius;
+    const nz = fg.cz + Math.sin(fg.angle)*fg.radius;
+    const ny = terrainY(nx, nz);
+    const body = fg.mesh;
+    body.position.set(nx, ny + (body.userData.faunaData?.size||1)*0.5 + Math.sin(t*fg.bobSpeed)*0.35, nz);
+    body.rotation.y = fg.angle + Math.PI;
+  });
+
+  // Crystal rotation and levitation
+  crystals.forEach((c,i) => {
+    if (c.parent) c.rotation.y += dt * 1.2;
+    c.position.y += Math.sin(t*2.2 + i*0.8) * 0.002;
+  });
+
+  // Weather animation
+  if (weatherGeo) {
+    const wp = weatherGeo.attributes.position;
+    for (let i = 0; i < WC; i++) {
+      if (PAL.particle === 'snow') {
+        wp.setY(i, wp.getY(i) - weatherVel[i]*dt*2.5);
+        wp.setX(i, wp.getX(i) + Math.sin(t + i)*dt*0.4);
+      } else if (PAL.particle === 'sandstorm') {
+        wp.setX(i, wp.getX(i) + weatherVel[i]*dt*18);
+        wp.setY(i, wp.getY(i) + Math.sin(t*3+i)*dt*1.5);
+      } else {
+        wp.setY(i, wp.getY(i) - weatherVel[i]*dt*22);
+      }
+      if (wp.getY(i) < 0)    wp.setY(i, 80);
+      if (wp.getX(i) > 100)  wp.setX(i, -100);
+    }
+    wp.needsUpdate = true;
+  }
+
+  // Terrain clamp for camera
+  const cy = terrainY(camera.position.x, camera.position.z) + 6;
+  if (camera.position.y < cy) camera.position.y = cy;
+
+  controls.update();
+  composer.render();
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+document.body.setAttribute('tabindex','0');
+document.body.focus();
+</script>
+</body>
+</html>

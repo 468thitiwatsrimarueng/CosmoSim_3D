@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ΛCDM Galaxy Map — Hubble Expansion Demonstrator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ─────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #00010a;
+             font-family: 'Inter', sans-serif; color: #e0f7fa; user-select: none; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+#viewport {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 156px;
+  overflow: hidden; cursor: crosshair;
+}
+#viewport canvas { display: block; width: 100% !important; height: 100% !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   HUD OVERLAY — Hubble Expansion Panel (top-left)
+   ═══════════════════════════════════════════════════════════ */
+#hubble-hud {
+  position: absolute; top: 12px; left: 12px; z-index: 20;
+  width: 230px; pointer-events: none;
+}
+
+/* Scale-factor ring + label */
+.hud-ring-wrap {
+  position: relative; width: 120px; height: 120px; margin: 0 auto 10px;
+}
+#ring-svg { width: 120px; height: 120px; }
+.ring-bg  { fill: none; stroke: rgba(79,195,247,0.08); stroke-width: 9; }
+.ring-fill { fill: none; stroke-width: 9; stroke-linecap: round;
+             stroke-dasharray: 301.6; stroke-dashoffset: 301.6;
+             transform-origin: 60px 60px; transform: rotate(-90deg);
+             transition: stroke-dashoffset 0.4s ease, stroke 0.4s ease; }
+.ring-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  text-align: center;
+}
+.ring-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: #4fc3f7; line-height: 1; }
+.ring-sub { font-size: 9px; color: rgba(79,195,247,0.5); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
+
+/* Metric rows */
+.hud-metrics { display: flex; flex-direction: column; gap: 6px; }
+.hud-row {
+  background: rgba(4,8,22,0.82); border: 1px solid rgba(79,195,247,0.15);
+  border-radius: 8px; padding: 6px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  backdrop-filter: blur(12px);
+}
+.hud-lbl { font-size: 9px; color: rgba(79,195,247,0.5); letter-spacing: 1.5px; text-transform: uppercase; }
+.hud-num { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; color: #81d4fa; }
+.hud-num.accent { color: #4fc3f7; }
+.hud-num.warn   { color: #ffab40; }
+.hud-bar-wrap { height: 4px; background: rgba(79,195,247,0.08); border-radius: 2px; margin-top: 4px; }
+.hud-bar-fill { height: 4px; border-radius: 2px; transition: width 0.4s ease, background 0.4s ease; }
+
+/* Epoch badge */
+#epoch-badge {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 20; pointer-events: none;
+  background: rgba(4,8,22,0.88); border: 1px solid rgba(79,195,247,0.28);
+  border-radius: 20px; padding: 5px 18px;
+  font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+  color: #4fc3f7; letter-spacing: 2.5px; text-transform: uppercase;
+  white-space: nowrap; opacity: 0; transition: opacity 0.5s ease;
+  backdrop-filter: blur(12px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EPOCH TIMELINE (top-right panel)
+   ═══════════════════════════════════════════════════════════ */
+#timeline-panel {
+  position: absolute; top: 12px; right: 12px; z-index: 20;
+  width: 200px; pointer-events: none;
+  background: rgba(4,8,22,0.82); border: 1px solid rgba(79,195,247,0.15);
+  border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(12px);
+}
+.tl-title { font-family: 'Space Mono', monospace; font-size: 8px; font-weight: 700;
+            color: rgba(79,195,247,0.5); letter-spacing: 2px; text-transform: uppercase;
+            margin-bottom: 8px; }
+.tl-track { position: relative; height: 4px; background: rgba(79,195,247,0.08);
+            border-radius: 2px; margin-bottom: 16px; }
+#tl-progress { height: 4px; background: linear-gradient(90deg, #1a3a5c 0%, #4fc3f7 100%);
+               border-radius: 2px; transition: width 0.3s ease; }
+#tl-cursor { position: absolute; top: -4px; width: 12px; height: 12px;
+             background: #4fc3f7; border-radius: 50%; border: 2px solid #00010a;
+             transition: left 0.3s ease; margin-left: -6px;
+             box-shadow: 0 0 8px #4fc3f7; }
+.tl-epochs { display: flex; flex-direction: column; gap: 4px; }
+.tl-ep {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 9px; color: rgba(100,140,170,0.7); transition: color 0.3s, opacity 0.3s;
+  opacity: 0.5;
+}
+.tl-ep.active { color: #4fc3f7; opacity: 1; }
+.tl-ep-dot { width: 6px; height: 6px; border-radius: 50%;
+             background: rgba(79,195,247,0.2); flex-shrink: 0;
+             transition: background 0.3s, box-shadow 0.3s; }
+.tl-ep.active .tl-ep-dot { background: #4fc3f7; box-shadow: 0 0 6px #4fc3f7; }
+.tl-ep-lbl { flex: 1; }
+.tl-ep-t   { font-family: 'Space Mono', monospace; font-size: 8px; color: rgba(79,195,247,0.4); }
+
+/* ═══════════════════════════════════════════════════════════
+   BOTTOM CONTROL BAR
+   ═══════════════════════════════════════════════════════════ */
+#ctrlBar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 156px;
+  background: rgba(3,6,18,0.98); border-top: 1px solid rgba(79,195,247,0.18);
+  backdrop-filter: blur(22px); display: flex; flex-direction: column;
+  justify-content: space-between; padding: 10px 18px 12px; z-index: 10;
+}
+
+/* Row 1 — Selected system */
+.cb-r1 { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          border-bottom: 1px solid rgba(79,195,247,0.08); padding-bottom: 8px; }
+.cb-sysinfo { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.cb-sysicon { font-size: 18px; }
+.cb-sysname { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+              color: #4fc3f7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+              max-width: 280px; }
+.cb-sysmeta { font-size: 10px; color: #546e7a; font-family: 'Space Mono', monospace; }
+.cb-sysdesc { font-size: 10px; color: #37474f; max-width: 320px; white-space: nowrap;
+              overflow: hidden; text-overflow: ellipsis; }
+.cb-btns { display: flex; gap: 8px; flex-shrink: 0; }
+.cb-btn {
+  background: rgba(8,14,32,0.9); border: 1px solid rgba(79,195,247,0.28);
+  color: #4fc3f7; border-radius: 7px; padding: 6px 14px;
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s; white-space: nowrap;
+  pointer-events: auto;
+}
+.cb-btn:hover { background: rgba(79,195,247,0.14); border-color: rgba(79,195,247,0.55);
+                box-shadow: 0 0 12px rgba(79,195,247,0.12); }
+.cb-btn.primary { background: rgba(79,195,247,0.12); border-color: rgba(79,195,247,0.5); }
+.cb-btn.primary:hover { background: rgba(79,195,247,0.28); }
+.cb-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.cb-btn.play-active { background: rgba(255,171,64,0.12); border-color: rgba(255,171,64,0.5); color: #ffab40; }
+
+/* Row 2 — Slider */
+.cb-r2 { display: flex; align-items: center; gap: 10px; }
+.cb-label { font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+            color: #4fc3f7; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap; }
+.slider-wrap { flex: 1; position: relative; height: 24px; display: flex; align-items: center; }
+#timeSlider {
+  width: 100%; height: 4px; -webkit-appearance: none; appearance: none;
+  background: rgba(79,195,247,0.12); border-radius: 2px; outline: none; cursor: pointer;
+}
+#timeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: #4fc3f7; border: 2px solid #00010a;
+  box-shadow: 0 0 8px rgba(79,195,247,0.8); cursor: pointer;
+}
+/* Epoch ticks on slider */
+.slider-ticks { position: absolute; bottom: -6px; left: 0; right: 0; pointer-events: none; }
+.slider-tick { position: absolute; width: 1px; height: 5px; background: rgba(79,195,247,0.25); }
+
+#epochTag { font-family: 'Space Mono', monospace; font-size: 9px; color: #81d4fa;
+            letter-spacing: 1px; white-space: nowrap; opacity: 0.7; min-width: 160px; text-align: right; }
+
+/* Row 3 — Stats */
+.cb-r3 { display: flex; gap: 0; }
+.cb-stat { font-family: 'Space Mono', monospace; font-size: 10px; color: #546e7a;
+           padding: 0 14px 0 0; border-right: 1px solid rgba(79,195,247,0.08);
+           margin-right: 14px; white-space: nowrap; }
+.cb-stat:last-child { border-right: none; margin-right: 0; }
+.cb-stat .v  { color: #81d4fa; font-weight: 700; }
+.cb-stat .vb { color: #4fc3f7; }
+.cb-stat .vw { color: #ffab40; }
+</style>
+</head>
+<body>
+
+<!-- ══ 3D CANVAS VIEWPORT ═══════════════════════════════════ -->
+<div id="viewport"></div>
+
+<!-- ══ HUBBLE EXPANSION HUD (top-left) ═══════════════════════ -->
+<div id="hubble-hud">
+  <!-- Scale-factor ring gauge -->
+  <div class="hud-ring-wrap">
+    <svg id="ring-svg" viewBox="0 0 120 120">
+      <circle class="ring-bg"   cx="60" cy="60" r="48"/>
+      <circle class="ring-fill" cx="60" cy="60" r="48" id="ring-arc"/>
+    </svg>
+    <div class="ring-center">
+      <div class="ring-val" id="hud-a">1.000</div>
+      <div class="ring-sub">a(t)</div>
+    </div>
+  </div>
+  <!-- Metric rows -->
+  <div class="hud-metrics">
+    <div class="hud-row">
+      <div>
+        <div class="hud-lbl">Cosmic Time</div>
+        <div class="hud-num accent" id="hud-t">14.00 Gyr</div>
+      </div>
+      <div style="text-align:right">
+        <div class="hud-lbl">Redshift</div>
+        <div class="hud-num" id="hud-z">z = 0.0000</div>
+      </div>
+    </div>
+    <div class="hud-row" style="flex-direction:column;gap:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="hud-lbl">Hubble Constant H(t)</div>
+        <div class="hud-num warn" id="hud-H">67.4 km/s/Mpc</div>
+      </div>
+      <div class="hud-bar-wrap">
+        <div class="hud-bar-fill" id="hud-Hbar" style="width:30%;background:#ffab40"></div>
+      </div>
+    </div>
+    <div class="hud-row" style="flex-direction:column;gap:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="hud-lbl">r = a(t) × x<sub style="font-size:7px">com</sub></div>
+        <div class="hud-num" id="hud-expand" style="font-size:9px;color:rgba(79,195,247,0.6)">Expansion OFF</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EPOCH BADGE (top-center) ═════════════════════════════ -->
+<div id="epoch-badge">PRESENT DAY</div>
+
+<!-- ══ EPOCH TIMELINE (top-right) ════════════════════════════ -->
+<div id="timeline-panel">
+  <div class="tl-title">⏱ Cosmic Timeline</div>
+  <div class="tl-track">
+    <div id="tl-progress" style="width:100%"></div>
+    <div id="tl-cursor" style="left:100%"></div>
+    <div class="slider-ticks" id="tl-ticks"></div>
+  </div>
+  <div class="tl-epochs" id="tl-epochs"></div>
+</div>
+
+<!-- ══ HTML CONTROL BAR ══════════════════════════════════════ -->
+<div id="ctrlBar">
+  <!-- Row 1: Selected system -->
+  <div class="cb-r1">
+    <div class="cb-sysinfo">
+      <span class="cb-sysicon" id="sel-icon">⬡</span>
+      <div>
+        <div class="cb-sysname" id="sel-name">Click a system to select</div>
+        <div class="cb-sysmeta" id="sel-meta"></div>
+      </div>
+      <div class="cb-sysdesc" id="sel-desc"></div>
+    </div>
+    <div class="cb-btns">
+      <button class="cb-btn primary" id="enterBtn" onclick="doEnter()" disabled>→ Enter System</button>
+      <button class="cb-btn" id="btn-theory"    onclick="goTheory()">📐 Theory</button>
+      <button class="cb-btn" id="btn-dashboard" onclick="goDashboard()">📊 Dashboard</button>
+    </div>
+  </div>
+
+  <!-- Row 2: Time slider -->
+  <div class="cb-r2">
+    <span class="cb-label" id="lbl-cosmic-time">⏱ Cosmic Time</span>
+    <div class="slider-wrap">
+      <input type="range" id="timeSlider" min="0.1" max="14.0" step="0.02" value="14.0">
+    </div>
+    <button class="cb-btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
+    <span id="epochTag">PRESENT DAY  ·  a = 1.0000</span>
+  </div>
+
+  <!-- Row 3: Physics stats -->
+  <div class="cb-r3">
+    <div class="cb-stat">t = <span class="v" id="e-t">14.00</span> Gyr</div>
+    <div class="cb-stat">a(t) = <span class="v vb" id="e-a">1.0000</span></div>
+    <div class="cb-stat" id="lbl-redshift">z = <span class="v" id="e-z">0.0000</span></div>
+    <div class="cb-stat">H = <span class="v vw" id="e-H">67.4</span> km/s/Mpc</div>
+    <div class="cb-stat" id="lbl-named">Named: <span class="v">25</span> systems</div>
+    <div class="cb-stat" id="lbl-bg">Bg: <span class="v" id="bgCount">—</span> hosts</div>
+  </div>
+</div>
+
+<!-- ══ THREE.JS ══════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+
+<script>
+// ============================================================
+//  DATA INJECTED FROM PYTHON
+// ============================================================
+const SYSTEMS  = __SYSTEMS_JSON__;
+const LCDM     = __LCDM_TABLE_JSON__;
+const EPOCHS   = __EPOCH_BENCHMARKS_JSON__;
+const BG_STARS = __BACKGROUND_STARS_JSON__;
+const I18N     = __I18N_JSON__;
+
+let currentLang = __CURRENT_LANG__;
+
+function t(key, replacements = {}) {
+  let val = (I18N[currentLang] && I18N[currentLang][key]) ? I18N[currentLang][key] : key;
+  for (const [k, v] of Object.entries(replacements)) val = val.replace(`{${k}}`, v);
+  return val;
+}
+
+// ============================================================
+//  BUILD EPOCH TIMELINE
+// ============================================================
+const EPOCH_KEYS = [
+  ['reionization',    'Reionization'],
+  ['galaxy_formation','Galaxy Formation'],
+  ['solar_born',      'Solar System Born'],
+  ['dark_energy_dom', 'Dark Energy Dominates'],
+  ['present_day',     'Present Day'],
+];
+const epochEl = document.getElementById('tl-epochs');
+const ticksEl = document.getElementById('tl-ticks');
+EPOCHS.forEach(ep => {
+  const pct = ((ep.t - 0.1) / (14.0 - 0.1)) * 100;
+  // Tick mark on track
+  const tick = document.createElement('div');
+  tick.className = 'slider-tick';
+  tick.style.left = pct + '%';
+  ticksEl.appendChild(tick);
+  // Epoch row
+  const row = document.createElement('div');
+  row.className = 'tl-ep';
+  row.id = 'ep-' + ep.t.toFixed(2).replace('.','_');
+  row.innerHTML = `<div class="tl-ep-dot"></div>
+    <span class="tl-ep-lbl">${ep.label}</span>
+    <span class="tl-ep-t">${ep.t.toFixed(1)} Gyr</span>`;
+  epochEl.appendChild(row);
+});
+
+// ============================================================
+//  ΛCDM INTERPOLATION
+// ============================================================
+function lcdmAt(time) {
+  if (time <= LCDM[0].t)              return Object.assign({}, LCDM[0]);
+  if (time >= LCDM[LCDM.length-1].t) return Object.assign({}, LCDM[LCDM.length-1]);
+  let lo = 0, hi = LCDM.length - 1;
+  while (hi - lo > 1) { const m = (lo+hi)>>1; if (LCDM[m].t <= time) lo=m; else hi=m; }
+  const f = (time - LCDM[lo].t) / (LCDM[hi].t - LCDM[lo].t);
+  return { t: time,
+    a: LCDM[lo].a + f*(LCDM[hi].a - LCDM[lo].a),
+    z: LCDM[lo].z + f*(LCDM[hi].z - LCDM[lo].z),
+    H: LCDM[lo].H + f*(LCDM[hi].H - LCDM[lo].H) };
+}
+
+// ============================================================
+//  SEEDED RNG
+// ============================================================
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a>>>15, 1|a);
+    t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+
+// ============================================================
+//  GLSL SHADERS
+// ============================================================
+const GALAXY_VS = `
+  attribute float aSize;
+  attribute vec3  aColor;
+  varying   vec3  vColor;
+  void main() {
+    vColor = aColor;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    float d = max(1.0, -mv.z);
+    gl_PointSize = clamp(aSize * 220.0 / d, 0.4, 14.0);
+  }
+`;
+const GALAXY_FS = `
+  varying vec3 vColor;
+  void main() {
+    vec2  uv = gl_PointCoord - 0.5;
+    float r  = length(uv);
+    if (r > 0.5) discard;
+    float glow = exp(-r * 5.5);
+    float core = exp(-r * 22.0);
+    gl_FragColor = vec4(vColor + vec3(core*0.9), glow*0.78 + core*0.22);
+  }
+`;
+const BG_VS = `
+  attribute float aSize;
+  attribute vec3  aColor;
+  varying   vec3  vColor;
+  void main() {
+    vColor = aColor;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    float d = max(1.0, -mv.z);
+    gl_PointSize = clamp(aSize * 280.0 / d, 0.5, 8.0);
+  }
+`;
+const BG_FS = `
+  varying vec3 vColor;
+  void main() {
+    float r = length(gl_PointCoord - 0.5);
+    if (r > 0.5) discard;
+    float a = exp(-r * 7.0);
+    gl_FragColor = vec4(vColor, a * 0.92);
+  }
+`;
+
+// ============================================================
+//  PROCEDURAL SPIRAL GALAXY GEOMETRY
+// ============================================================
+function buildGalaxyGeometry(seed, numArms, nParticles, scale) {
+  const rng = mulberry32(seed);
+  const pos = new Float32Array(nParticles * 3);
+  const col = new Float32Array(nParticles * 3);
+  const sz  = new Float32Array(nParticles);
+  const b   = 0.20;
+  const cN  = Math.floor(nParticles * 0.22);
+  const hN  = Math.floor(nParticles * 0.08);
+  for (let i = 0; i < cN; i++) {
+    const r=Math.pow(rng(),1.8)*scale*0.32, th=rng()*Math.PI*2, y=(rng()-.5)*scale*.12;
+    pos[i*3]=r*Math.cos(th); pos[i*3+1]=y; pos[i*3+2]=r*Math.sin(th);
+    const f=Math.pow(r/(scale*.32),.5);
+    col[i*3]=1.0; col[i*3+1]=.82-f*.28; col[i*3+2]=.35-f*.25; sz[i]=1.8+rng()*2.2;
+  }
+  for (let i=cN; i<cN+hN; i++) {
+    const r=(0.55+Math.pow(rng(),.6)*.45)*scale, th=rng()*Math.PI*2, phi=(rng()-.5)*Math.PI*.6;
+    pos[i*3]=r*Math.cos(phi)*Math.cos(th); pos[i*3+1]=r*Math.sin(phi)*.4; pos[i*3+2]=r*Math.cos(phi)*Math.sin(th);
+    col[i*3]=.65+rng()*.25; col[i*3+1]=.70+rng()*.20; col[i*3+2]=.92+rng()*.08; sz[i]=.5+rng()*.8;
+  }
+  for (let i=cN+hN; i<nParticles; i++) {
+    const arm=Math.floor(rng()*numArms), aOff=(arm/numArms)*Math.PI*2;
+    const tV=.04+rng()*.96, theta=tV*Math.PI*3.8+aOff;
+    const r_s=scale*.07*Math.exp(b*(theta-aOff));
+    const r=Math.min(scale*1.05, r_s+(rng()-.5)*r_s*.22);
+    const th=theta+(rng()-.5)*.35, y=(rng()-.5)*scale*.05*(1-tV*.55);
+    pos[i*3]=r*Math.cos(th); pos[i*3+1]=y; pos[i*3+2]=r*Math.sin(th);
+    const cold=Math.min(1.0, tV*1.1+rng()*.15-.05);
+    col[i*3]=.15+(1-cold)*.55+rng()*.08; col[i*3+1]=.35+cold*.35+rng()*.1; col[i*3+2]=.82+cold*.18;
+    sz[i]=.7+rng()*1.4;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('aColor',   new THREE.BufferAttribute(col,3));
+  geo.setAttribute('aSize',    new THREE.BufferAttribute(sz,1));
+  return geo;
+}
+
+// ============================================================
+//  SCENE SETUP
+// ============================================================
+const container = document.getElementById('viewport');
+const scene     = new THREE.Scene();
+scene.background = new THREE.Color(0x00010a);
+
+const W = container.clientWidth || 800, H = container.clientHeight || 500;
+const camera = new THREE.PerspectiveCamera(55, W/H, 0.1, 300000);
+camera.position.set(0, 900, 1900);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 1.15;
+container.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.minDistance = 40; controls.maxDistance = 14000;
+
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 1.9, 0.65, 0.10);
+const composer = new THREE.EffectComposer(renderer);
+composer.addPass(new THREE.RenderPass(scene, camera));
+composer.addPass(bloom);
+
+// ============================================================
+//  BACKGROUND STARFIELD
+// ============================================================
+(function() {
+  const N=90000, pos=new Float32Array(N*3);
+  for (let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*160000;pos[i*3+1]=(Math.random()-.5)*160000;pos[i*3+2]=(Math.random()-.5)*160000;}
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x8090b0,size:1.5,transparent:true,opacity:.18,depthWrite:false})));
+})();
+
+// ============================================================
+//  COMOVING GRID (stretches with a(t))
+// ============================================================
+const GRID_COMOVING=[];
+let gridPosAttr;
+(function(){
+  const GS=300, GR=1350, GY=-80;
+  for(let x=-GR;x<=GR;x+=GS){GRID_COMOVING.push({x,y:GY,z:-GR},{x,y:GY,z:GR});}
+  for(let z=-GR;z<=GR;z+=GS){GRID_COMOVING.push({x:-GR,y:GY,z},{x:GR,y:GY,z});}
+  const pos=new Float32Array(GRID_COMOVING.length*3);
+  GRID_COMOVING.forEach((p,i)=>{pos[i*3]=p.x;pos[i*3+1]=p.y;pos[i*3+2]=p.z;});
+  const geo=new THREE.BufferGeometry();
+  gridPosAttr=new THREE.BufferAttribute(pos,3);
+  geo.setAttribute('position',gridPosAttr);
+  scene.add(new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color:0x0d2544,transparent:true,opacity:.5,depthWrite:false})));
+})();
+function updateGrid(at){
+  GRID_COMOVING.forEach((p,i)=>{gridPosAttr.setXYZ(i,p.x*at,p.y,p.z*at);});
+  gridPosAttr.needsUpdate=true;
+}
+
+// ============================================================
+//  HUBBLE FLOW ARROWS — show recession velocity direction
+//  One arrow per named system pointing away from origin
+// ============================================================
+const arrowGroup = new THREE.Group();
+scene.add(arrowGroup);
+const arrowHelpers = [];
+const ARROW_COLOR = new THREE.Color(0x4fc3f7);
+SYSTEMS.forEach((s, i) => {
+  const dir = new THREE.Vector3(s.x_com, s.y_com, s.z_com).normalize();
+  const origin = new THREE.Vector3(s.x_com, s.y_com, s.z_com);
+  const arrow = new THREE.ArrowHelper(dir, origin, 60, 0x4fc3f7, 18, 10);
+  arrow.line.material.transparent = true;
+  arrow.line.material.opacity = 0.35;
+  arrow.cone.material.transparent = true;
+  arrow.cone.material.opacity = 0.5;
+  arrowGroup.add(arrow);
+  arrowHelpers.push({ arrow, sys: s });
+});
+
+function updateArrows(at, H) {
+  arrowHelpers.forEach(({ arrow, sys }) => {
+    // Physical position at this epoch
+    const px = sys.x_com * at, py = sys.y_com * at, pz = sys.z_com * at;
+    const dist = Math.sqrt(px*px + py*py + pz*pz);
+    if (dist < 0.01) { arrow.visible = false; return; }
+    arrow.visible = true;
+    // Recession velocity v = H * d (Hubble law), arrow length proportional
+    const v = H * dist * 0.001;  // scale for display
+    const len = Math.min(220, Math.max(30, v * 1.2));
+    const dir = new THREE.Vector3(px, py, pz).normalize();
+    arrow.position.set(px, py, pz);
+    arrow.setDirection(dir);
+    arrow.setLength(len, Math.min(len * 0.3, 30), Math.min(len * 0.15, 14));
+    // Color: blue (slow) → orange (fast) based on recession speed
+    const speed = Math.min(1.0, v / 300.0);
+    const col = new THREE.Color().setHSL(0.58 - speed * 0.55, 1.0, 0.5 + speed * 0.15);
+    arrow.line.material.color.copy(col);
+    arrow.cone.material.color.copy(col);
+    arrow.line.material.opacity = 0.25 + speed * 0.4;
+    arrow.cone.material.opacity = 0.4 + speed * 0.45;
+  });
+}
+let showArrows = true;
+
+// ============================================================
+//  NASA BACKGROUND STARS — GPU points layer
+// ============================================================
+function hexToRgb(h){const c=parseInt(h.slice(1),16);return[(c>>16)/255,((c>>8)&0xff)/255,(c&0xff)/255];}
+
+const bgN            = BG_STARS.length;
+const bgComov        = new Float32Array(bgN*3);
+const bgPhysAttr_arr = new Float32Array(bgN*3);
+const bgCol          = new Float32Array(bgN*3);
+const bgSz           = new Float32Array(bgN);
+
+BG_STARS.forEach((s,i)=>{
+  bgComov[i*3]=s.x; bgComov[i*3+1]=s.y; bgComov[i*3+2]=s.z;
+  bgPhysAttr_arr[i*3]=s.x; bgPhysAttr_arr[i*3+1]=s.y; bgPhysAttr_arr[i*3+2]=s.z;
+  const rgb=hexToRgb(s.col);
+  bgCol[i*3]=rgb[0]; bgCol[i*3+1]=rgb[1]; bgCol[i*3+2]=rgb[2];
+  bgSz[i]=Math.max(0.8, Math.min(4.5, 4.5-Math.log10(Math.max(10,s.d))*0.6));
+});
+const bgGeo     = new THREE.BufferGeometry();
+const bgPosAttr = new THREE.BufferAttribute(bgPhysAttr_arr, 3);
+bgGeo.setAttribute('position', bgPosAttr);
+bgGeo.setAttribute('aColor',   new THREE.BufferAttribute(bgCol, 3));
+bgGeo.setAttribute('aSize',    new THREE.BufferAttribute(bgSz,  1));
+const bgMat = new THREE.ShaderMaterial({
+  uniforms: {}, vertexShader: BG_VS, fragmentShader: BG_FS,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const bgPoints = new THREE.Points(bgGeo, bgMat);
+scene.add(bgPoints);
+
+function updateBgStars(at) {
+  for (let i=0; i<bgN; i++) {
+    bgPosAttr.array[i*3]   = bgComov[i*3]   * at;
+    bgPosAttr.array[i*3+1] = bgComov[i*3+1] * at;
+    bgPosAttr.array[i*3+2] = bgComov[i*3+2] * at;
+  }
+  bgPosAttr.needsUpdate = true;
+}
+
+// ============================================================
+//  25 NAMED SYSTEMS — Procedural Spiral Galaxies
+// ============================================================
+const galaxyMat = new THREE.ShaderMaterial({
+  vertexShader: GALAXY_VS, fragmentShader: GALAXY_FS,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const ARM_MAP = {O:3,B:3,A:2,F:2,G:2,K:2,M:2};
+const GALAXY_SCALE = 26;
+const galaxyGroups = [], hitMeshes = [];
+
+SYSTEMS.forEach((s,i) => {
+  const group = new THREE.Group();
+  const seed  = Math.abs(Math.round(s.x_com*17+s.y_com*31+s.z_com*13+i*97))|0;
+  const rng0  = mulberry32(seed+7);
+  const tiltX = (rng0()-.5)*Math.PI*.7, tiltZ=(rng0()-.5)*Math.PI*.4;
+  const geo   = buildGalaxyGeometry(seed, ARM_MAP[s.star_class]||2, 700, GALAXY_SCALE);
+  const pts   = new THREE.Points(geo, galaxyMat.clone());
+  pts.rotation.x=tiltX; pts.rotation.z=tiltZ;
+  group.add(pts);
+
+  const hit = new THREE.Mesh(
+    new THREE.SphereGeometry(34,8,8),
+    new THREE.MeshBasicMaterial({visible:false})
+  );
+  hit.userData={idx:i,sys:s};
+  group.add(hit);
+  hitMeshes.push(hit);
+  scene.add(group);
+  galaxyGroups.push({group,sys:s});
+});
+
+// ============================================================
+//  HUD HELPERS — Ring gauge & stat updates
+// ============================================================
+const ringArc   = document.getElementById('ring-arc');
+const RING_CIRC = 301.6;   // 2π × 48
+// H values: early universe ~10000, present ~67
+// We'll normalize 0–500 km/s/Mpc as 0–100% bar
+const H_MAX = 500;
+
+function updateHUD(ep) {
+  const { t: tV, a, z, H } = ep;
+
+  // Scale-factor ring (0 → 1.0 maps to empty → full)
+  const pct  = Math.min(1.0, a / 1.0);
+  const dash = RING_CIRC * (1.0 - pct);
+  ringArc.style.strokeDashoffset = dash;
+  // Ring color: deep red early → cyan present
+  const hue = Math.round(pct * 180);   // 0=red, 180=cyan
+  ringArc.style.stroke = `hsl(${hue},90%,60%)`;
+  document.getElementById('hud-a').textContent = a.toFixed(4);
+
+  // Metric rows
+  document.getElementById('hud-t').textContent = tV.toFixed(2) + ' Gyr';
+  document.getElementById('hud-z').textContent = 'z = ' + z.toFixed(4);
+  document.getElementById('hud-H').textContent = H.toFixed(1) + ' km/s/Mpc';
+  const Hpct = Math.min(100, (H / H_MAX) * 100);
+  const hbar = document.getElementById('hud-Hbar');
+  hbar.style.width = Hpct + '%';
+  // Color bar: high H = warm orange, low H = teal
+  hbar.style.background = H > 150 ? '#ff7043' : H > 80 ? '#ffab40' : '#4fc3f7';
+
+  document.getElementById('hud-expand').textContent =
+    pct < 0.99 ? `Expanding  ×${a.toFixed(3)}` : 'Present Day';
+  document.getElementById('hud-expand').style.color =
+    pct < 0.99 ? '#ffab40' : 'rgba(79,195,247,0.6)';
+
+  // Bottom stats
+  document.getElementById('e-t').textContent = tV.toFixed(2);
+  document.getElementById('e-a').textContent = a.toFixed(4);
+  document.getElementById('e-z').textContent = z.toFixed(4);
+  document.getElementById('e-H').textContent = H.toFixed(1);
+}
+
+// ============================================================
+//  EPOCH TIMELINE UPDATES
+// ============================================================
+function updateTimeline(timeVal) {
+  const pct = ((timeVal - 0.1) / (14.0 - 0.1)) * 100;
+  document.getElementById('tl-progress').style.width  = pct + '%';
+  document.getElementById('tl-cursor').style.left     = pct + '%';
+
+  let nearLabel = 'PRESENT DAY', nearDist = Infinity, nearEp = null;
+  EPOCHS.forEach(ep => {
+    const d = Math.abs(timeVal - ep.t);
+    if (d < nearDist) { nearDist = d; nearLabel = ep.label.toUpperCase(); nearEp = ep; }
+    const id = 'ep-' + ep.t.toFixed(2).replace('.','_');
+    const el = document.getElementById(id);
+    if (el) el.className = 'tl-ep' + (d < 0.6 ? ' active' : '');
+  });
+
+  const badge = document.getElementById('epoch-badge');
+  if (nearDist < 0.6) {
+    badge.textContent = nearLabel;
+    badge.style.opacity = '1';
+  } else {
+    badge.style.opacity = '0';
+  }
+
+  const tag = document.getElementById('epochTag');
+  const ep  = lcdmAt(timeVal);
+  tag.textContent = (nearDist < 0.6 ? nearLabel + '  ·  ' : '') + 'a = ' + ep.a.toFixed(4);
+  tag.style.opacity = nearDist < 0.6 ? '1' : '0.6';
+}
+
+// ============================================================
+//  MAIN POSITION + HUD UPDATE
+// ============================================================
+function updatePositions(timeVal) {
+  const ep = lcdmAt(timeVal);
+  const at = ep.a;
+
+  // Named systems
+  SYSTEMS.forEach((s,i) => { galaxyGroups[i].group.position.set(s.x_com*at,s.y_com*at,s.z_com*at); });
+
+  // Background stars
+  updateBgStars(at);
+
+  // Grid
+  updateGrid(at);
+
+  // Hubble flow arrows
+  if (showArrows) updateArrows(at, ep.H);
+  arrowGroup.visible = showArrows;
+
+  // HUD + Timeline
+  updateHUD(ep);
+  updateTimeline(timeVal);
+}
+updatePositions(14.0);
+document.getElementById('bgCount').textContent = BG_STARS.length;
+
+// ============================================================
+//  TIME SLIDER + ANIMATED PLAY
+// ============================================================
+const slider = document.getElementById('timeSlider');
+slider.addEventListener('input', () => updatePositions(parseFloat(slider.value)));
+
+let playing=false, playT=0.1;
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = playing ? '⏹ Stop' : '▶ Play';
+  btn.className = playing ? 'cb-btn play-active' : 'cb-btn';
+  if (playing) { playT = parseFloat(slider.value); if (playT >= 13.9) playT = 0.1; animPlay(); }
+}
+function animPlay() {
+  if (!playing) return;
+  playT = Math.min(14.0, playT + 0.033);
+  slider.value = playT; updatePositions(playT);
+  if (playT >= 14.0) {
+    playing = false;
+    document.getElementById('playBtn').textContent = '▶ Play';
+    document.getElementById('playBtn').className = 'cb-btn';
+    return;
+  }
+  requestAnimationFrame(animPlay);
+}
+
+// ============================================================
+//  RAYCASTING — click galaxies
+// ============================================================
+const raycaster = new THREE.Raycaster();
+const mouse     = new THREE.Vector2();
+let   selSys=null, clickMoved=false, downX=0, downY=0;
+
+renderer.domElement.addEventListener('pointerdown', e=>{ downX=e.clientX; downY=e.clientY; clickMoved=false; });
+renderer.domElement.addEventListener('pointermove', e=>{ if(Math.abs(e.clientX-downX)>4||Math.abs(e.clientY-downY)>4) clickMoved=true; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if (clickMoved) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)  *2-1;
+  mouse.y =-((e.clientY-rect.top) /rect.height) *2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits=raycaster.intersectObjects(hitMeshes);
+  if (hits.length>0) { selSys=hits[0].object.userData.sys; showSystemInfo(selSys); }
+  else               { clearSystemInfo(); }
+});
+
+function showSystemInfo(s) {
+  document.getElementById('sel-icon').textContent = '⭐';
+  document.getElementById('sel-name').textContent = s.name;
+  const starClassTrans = t('star_class_' + s.star_class);
+  const ecoTrans       = t('economy_' + s.economy);
+  const descTrans      = t(s.name + '_desc');
+  document.getElementById('sel-meta').textContent =
+    `${t('star_class_label')} ${s.star_class} (${starClassTrans})  ·  ${s.dist_ly} ${t('ly_val')}  ·  ${s.num_planets} ${t('planets_val')}  ·  ${t('economy_label')}: ${ecoTrans}`;
+  document.getElementById('sel-desc').textContent = descTrans;
+  document.getElementById('enterBtn').disabled = false;
+}
+function clearSystemInfo() {
+  selSys = null;
+  document.getElementById('sel-icon').textContent = '⬡';
+  document.getElementById('sel-name').textContent = t('click_galaxy_select', {bg_count: BG_STARS.length});
+  document.getElementById('sel-meta').textContent = '';
+  document.getElementById('sel-desc').textContent = '';
+  document.getElementById('enterBtn').disabled = true;
+}
+
+// ============================================================
+//  TRANSLATIONS
+// ============================================================
+function applyTranslations() {
+  document.getElementById('lbl-cosmic-time').textContent = t('cosmic_time');
+  document.getElementById('btn-theory').textContent      = t('theory_btn');
+  document.getElementById('btn-dashboard').textContent   = t('dashboard_btn');
+  document.getElementById('playBtn').textContent         = playing ? '⏹ Stop' : '▶ ' + t('play');
+  const zVal = document.getElementById('e-z').textContent;
+  document.getElementById('lbl-redshift').innerHTML = `z = <span class="v" id="e-z">${zVal}</span>`;
+  document.getElementById('lbl-named').innerHTML   = t('named_systems_label');
+  document.getElementById('lbl-bg').innerHTML      = `Bg: <span class="v" id="bgCount">${BG_STARS.length}</span> hosts`;
+  document.getElementById('enterBtn').textContent  = t('enter_system_btn');
+  if (selSys) showSystemInfo(selSys); else clearSystemInfo();
+}
+
+// Language watcher
+let _lastLang = currentLang;
+setInterval(() => {
+  try {
+    const lang = window.top.localStorage.getItem('cosmosim_lang') || window.localStorage.getItem('cosmosim_lang');
+    if (lang && lang !== _lastLang) { currentLang = _lastLang = lang; applyTranslations(); }
+  } catch(e) {}
+}, 200);
+
+applyTranslations();
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function doEnter() {
+  if (!selSys) return;
+  const url = '/?action=warp&sys=' + selSys.index;
+  try{window.top.location.href=url;}catch(e){try{window.parent.location.href=url;}catch(e2){window.open(url,'_top');}}
+}
+function goDashboard() {
+  const url = '/?action=dashboard';
+  try{window.top.location.href=url;}catch(e){try{window.parent.location.href=url;}catch(e2){window.open(url,'_top');}}
+}
+function goTheory() {
+  const url = '/?action=theory';
+  try{window.top.location.href=url;}catch(e){try{window.parent.location.href=url;}catch(e2){window.open(url,'_top');}}
+}
+
+// ============================================================
+//  RENDER LOOP
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  composer.render();
+}
+animate();
+
+// ============================================================
+//  RESPONSIVE RESIZE
+// ============================================================
+const ro = new ResizeObserver(() => {
+  const w=container.clientWidth, h=container.clientHeight;
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w,h); composer.setSize(w,h);
+});
+ro.observe(container);
+renderer.domElement.style.touchAction = 'none';
+</script>
+</body>
+</html>
