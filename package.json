@@ -1,0 +1,7 @@
+{
+    "name": "cosmosim-3d",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "python -m streamlit run app.py"
+    }
+}
